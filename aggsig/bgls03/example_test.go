@@ -47,8 +47,8 @@ func ExampleAggregate() {
 	bobSig := bgls03.Sign(pp, bobSK, bobMsg, nil)
 	carolSig := bgls03.Sign(pp, carolSK, carolMsg, nil)
 
-	sigs := []*bgls03.Signature{aliceSig, bobSig, carolSig}
-	aggSig := bgls03.Aggregate(pp, sigs)
+	allSigs := []*bgls03.Signature{aliceSig, bobSig, carolSig}
+	aggSig := bgls03.Aggregate(pp, allSigs)
 
 	err := bgls03.Verify(pp, pks, msgs, aggSig)
 	fmt.Println(err)

@@ -7,12 +7,12 @@ import (
 	"github.com/etclab/ncircl/util/bytesx"
 )
 
-func TestSingleSignVerify(t *testing.T) {
+func TestSign(t *testing.T) {
 	msg := []byte("The quick brown fox jumps over the lazy dog.")
 	pp := NewPublicParams()
 	alicePK, aliceSK := KeyGen(pp)
 
-	sig := SingleSign(pp, aliceSK, msg)
+	sig := Sign(pp, aliceSK, msg, nil)
 
 	valid := Verify(pp, []*PublicKey{alicePK}, msg, sig)
 	if !valid {
@@ -20,7 +20,7 @@ func TestSingleSignVerify(t *testing.T) {
 	}
 }
 
-func TestMultiSignVerify(t *testing.T) {
+func TestMultiSign(t *testing.T) {
 	msg := []byte("The quick brown fox jumps over the lazy dog.")
 	pp := NewPublicParams()
 	alicePK, aliceSK := KeyGen(pp)
@@ -39,6 +39,27 @@ func TestMultiSignVerify(t *testing.T) {
 	}
 }
 
+func TestAggregate(t *testing.T) {
+	msg := []byte("The quick brown fox jumps over the lazy dog.")
+	pp := NewPublicParams()
+	alicePK, aliceSK := KeyGen(pp)
+	bobPK, bobSK := KeyGen(pp)
+	carolPK, carolSK := KeyGen(pp)
+	pks := []*PublicKey{alicePK, bobPK, carolPK}
+
+	aliceSig := Sign(pp, aliceSK, msg, nil)
+	bobSig := Sign(pp, bobSK, msg, nil)
+	carolSig := Sign(pp, carolSK, msg, nil)
+
+	allSigs := []*Signature{aliceSig, bobSig, carolSig}
+	muSig := Aggregate(pp, allSigs)
+
+	valid := Verify(pp, pks, msg, muSig)
+	if !valid {
+		t.Fatal("expected Verify to return true; got false")
+	}
+}
+
 type user struct {
 	pk  *PublicKey
 	sk  *PrivateKey
@@ -48,7 +69,7 @@ type user struct {
 func newUser(pp *PublicParams, msg []byte) *user {
 	u := new(user)
 	u.pk, u.sk = KeyGen(pp)
-	u.sig = SingleSign(pp, u.sk, msg)
+	u.sig = Sign(pp, u.sk, msg, nil)
 	return u
 }
 

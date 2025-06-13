@@ -2,7 +2,6 @@ package bf01
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"io"
 
 	bls "github.com/cloudflare/circl/ecc/bls12381"
@@ -33,9 +32,6 @@ func HT(p *bls.Gt, numBytes int) []byte {
 type PublicParams struct {
 	// master publick key
 	MPK *bls.G2
-
-	// number of bytes for plaintext and for HT() output
-	MsgSize int
 }
 
 type PrivateKeyGenerator struct {
@@ -44,7 +40,7 @@ type PrivateKeyGenerator struct {
 	MSK *bls.Scalar
 }
 
-func NewPrivateKeyGenerator(msgSize int) (*PrivateKeyGenerator, *PublicParams) {
+func NewPrivateKeyGenerator() (*PrivateKeyGenerator, *PublicParams) {
 	pkg := new(PrivateKeyGenerator)
 	pp := new(PublicParams)
 
@@ -52,7 +48,6 @@ func NewPrivateKeyGenerator(msgSize int) (*PrivateKeyGenerator, *PublicParams) {
 
 	pp.MPK = new(bls.G2)
 	pp.MPK.ScalarMult(pkg.MSK, bls.G2Generator())
-	pp.MsgSize = msgSize
 
 	return pkg, pp
 }
@@ -72,11 +67,7 @@ type Ciphertext struct {
 	V []byte
 }
 
-func Encrypt(pp *PublicParams, id []byte, msg []byte) (*Ciphertext, error) {
-	if len(msg) != pp.MsgSize {
-		return nil, fmt.Errorf("plaintext must be %d bytes, not %d", pp.MsgSize, len(msg))
-	}
-
+func Encrypt(pp *PublicParams, id []byte, msg []byte) *Ciphertext {
 	r := blspairing.NewRandomScalar()
 	u := new(bls.G2)
 	u.ScalarMult(r, bls.G2Generator())
@@ -84,18 +75,18 @@ func Encrypt(pp *PublicParams, id []byte, msg []byte) (*Ciphertext, error) {
 	pkId := bls.Pair(blspairing.HashBytesToG1(id, nil), pp.MPK)
 	tmp := new(bls.Gt)
 	tmp.Exp(pkId, r)
-	v := HT(tmp, pp.MsgSize)
+	v := HT(tmp, len(msg))
 	bytesx.Xor(v, msg)
 	ct := Ciphertext{
 		U: u,
 		V: v,
 	}
 
-	return &ct, nil
+	return &ct
 }
 
 func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) []byte {
-	msg := HT(bls.Pair(sk.SK, ct.U), pp.MsgSize)
+	msg := HT(bls.Pair(sk.SK, ct.U), len(ct.V))
 	bytesx.Xor(msg, ct.V)
 	return msg
 }

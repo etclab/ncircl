@@ -7,7 +7,7 @@ import (
 
 func TestDecrypt(t *testing.T) {
 	// Setup
-	pkg, pp := NewPrivateKeyGenerator(32)
+	pkg, pp := NewPrivateKeyGenerator()
 
 	// Generate secret keys
 	bobSK := pkg.Extract([]byte("bob"))
@@ -16,13 +16,10 @@ func TestDecrypt(t *testing.T) {
 	msg := []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ012345")
 
 	// Alice encrypts the message to Bob
-	c, err := Encrypt(pp, []byte("bob"), msg)
-	if err != nil {
-		t.Fatalf("Encrypt failed: %v", err)
-	}
+	ct := Encrypt(pp, []byte("bob"), msg)
 
 	// Bob decrypts the message
-	got := Decrypt(pp, bobSK, c)
+	got := Decrypt(pp, bobSK, ct)
 
 	if !bytes.Equal(msg, got) {
 		t.Fatalf("expected decrypted message to be %x, but got %x", msg, got)
@@ -30,7 +27,7 @@ func TestDecrypt(t *testing.T) {
 }
 
 func BenchmarkExtract(b *testing.B) {
-	pkg, _ := NewPrivateKeyGenerator(32)
+	pkg, _ := NewPrivateKeyGenerator()
 	id := []byte("test@example.com")
 	for i := 0; i < b.N; i++ {
 		_ = pkg.Extract(id)
@@ -38,26 +35,20 @@ func BenchmarkExtract(b *testing.B) {
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	_, pp := NewPrivateKeyGenerator(32)
+	_, pp := NewPrivateKeyGenerator()
 	id := []byte("test@example.com")
 	msg := []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ012345")
 	for b.Loop() {
-		_, err := Encrypt(pp, id, msg)
-		if err != nil {
-			b.Fatalf("Encrypt failed: %v", err)
-		}
+		_ = Encrypt(pp, id, msg)
 	}
 }
 
 func BenchmarkDecrypt(b *testing.B) {
-	pkg, pp := NewPrivateKeyGenerator(32)
+	pkg, pp := NewPrivateKeyGenerator()
 	id := []byte("test@example.com")
 	idSK := pkg.Extract(id)
 	msg := []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ012345")
-	ct, err := Encrypt(pp, id, msg)
-	if err != nil {
-		b.Fatalf("Encrypt failed: %v", err)
-	}
+	ct := Encrypt(pp, id, msg)
 	for b.Loop() {
 		got := Decrypt(pp, idSK, ct)
 		b.StopTimer()

@@ -7,7 +7,7 @@ import (
 	"github.com/etclab/ncircl/util/bytesx"
 )
 
-func TestSignAndVerify(t *testing.T) {
+func TestSign(t *testing.T) {
 	m := []byte("The quick brown fox jumps over the lazy dog.")
 	pp := NewPublicParams()
 	pk, sk := KeyGen(pp)
@@ -18,7 +18,7 @@ func TestSignAndVerify(t *testing.T) {
 	}
 }
 
-func TestSignAndVerifyInvalid(t *testing.T) {
+func TestVerifyInvalid(t *testing.T) {
 	m1 := []byte("The quick brown fox jumps over the lazy dog.")
 	pp := NewPublicParams()
 	pk, sk := KeyGen(pp)
@@ -31,7 +31,31 @@ func TestSignAndVerifyInvalid(t *testing.T) {
 	}
 }
 
-func TestSignAggregateAndVerify(t *testing.T) {
+func TestManySign(t *testing.T) {
+	aliceMsg := []byte("Alice's message")
+	bobMsg := []byte("Bob's message")
+	carolMsg := []byte("Carol's message")
+	msgs := [][]byte{aliceMsg, bobMsg, carolMsg}
+
+	pp := NewPublicParams()
+
+	alicePK, aliceSK := KeyGen(pp)
+	bobPK, bobSK := KeyGen(pp)
+	carolPK, carolSK := KeyGen(pp)
+	pks := []*PublicKey{alicePK, bobPK, carolPK}
+
+	aggSig := NewSignature()
+	Sign(pp, aliceSK, aliceMsg, aggSig)
+	Sign(pp, bobSK, bobMsg, aggSig)
+	Sign(pp, carolSK, carolMsg, aggSig)
+
+	err := Verify(pp, pks, msgs, aggSig)
+	if err != nil {
+		t.Fatalf("expected Verify to return nil; go an error: %v", err)
+	}
+}
+
+func TestAggregate(t *testing.T) {
 	aliceMsg := []byte("Alice's message")
 	bobMsg := []byte("Bob's message")
 	carolMsg := []byte("Carol's message")
@@ -158,5 +182,4 @@ func BenchmarkVerify(b *testing.B) {
 			}
 		})
 	}
-
 }
