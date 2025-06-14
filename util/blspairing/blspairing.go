@@ -32,6 +32,12 @@ func NewG1Identity() *bls.G1 {
 	return g
 }
 
+func DupG1(g *bls.G1) *bls.G1 {
+	a := new(bls.G1)
+	a.SetBytes(g.Bytes())
+	return a
+}
+
 func HashBytesToG1(msg, domainSepTag []byte) *bls.G1 {
 	g := new(bls.G1)
 	g.Hash(msg, domainSepTag)
@@ -42,6 +48,12 @@ func NewG2Identity() *bls.G2 {
 	g := new(bls.G2)
 	g.SetIdentity()
 	return g
+}
+
+func DupG2(g *bls.G2) *bls.G2 {
+	a := new(bls.G2)
+	a.SetBytes(g.Bytes())
+	return a
 }
 
 func NewGtIdentity() *bls.Gt {

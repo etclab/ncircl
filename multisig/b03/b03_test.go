@@ -91,7 +91,7 @@ func BenchmarkVerify(b *testing.B) {
 			for b.Loop() {
 				valid := Verify(pp, pks[:n], msg, muSig)
 				if !valid {
-					b.Fatal("expected Verfity to return true; got false")
+					b.Fatal("expected Verify to return true; got false")
 				}
 			}
 		})

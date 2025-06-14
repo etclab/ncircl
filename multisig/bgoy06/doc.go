@@ -1,13 +1,17 @@
-// Package bgoy06 implements the ordered multisignature (OMS) scheme from:
+// Package bgoy06 implements the ordered multisignature (OMS) scheme from the
+// [paper]:
 //
-//	Alexandra Boldyreva, Craig Gentry, Adam O'Neill, Dae Hyun Yum.
-//	"Ordered Multisignatures and Identity-Based Sequential Aggregate Signatures with Applications to Secure Routing."
-//	In ACM Conference on Computer and Communications Security (CCS), 2006.
+//	 @inproceedings{07-ccs-ordered_multisignatures_identity_aggregate_signatures,
+//	     title = {Ordered Multisignatures and Identity-Based Sequential Aggregate Signatures, with Applications to Secure Routing},
+//	     author = {Boldyreva, Alexandra and Gentry, Craig and O'Neill, Adam and Yum, Dae Hyun},
+//	     booktitle = {"ACM Conference on Computer and Communications Security (CCS)"},
+//			year = {2007},
+//	 }
 //
-// Section 3 of that [paper] describes the scheme.
+// Section 3 of that paper describes the scheme.
 //
 // Note that the paper assumes a symmetric pairing.  To convert the scheme to
-// use BLS (an asymmetric pairing), we modify the algorithms slightly:
+// use BLS12-381 (an asymmetric pairing), we modify the algorithms slightly:
 //
 // # KeyGen
 //

@@ -68,9 +68,24 @@ func NewSignature() *Signature {
 	return sig
 }
 
-// Assume pubkeys are the pubkeys of all the previous signers.
-// muSig is an input parameter.
-func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pubkeys []*PublicKey) error {
+func (s *Signature) Dup() *Signature {
+	sig := new(Signature)
+
+	sig.Q = blspairing.DupG1(s.Q)
+	sig.X = blspairing.DupG2(s.X)
+	sig.Y = blspairing.DupG1(s.Y)
+	sig.R = blspairing.DupG2(s.R)
+
+	return sig
+}
+
+// Assume pks are the pubkeys of all the previous signers.
+// muSig is an input, output parameter.
+func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pks []*PublicKey) (*Signature, error) {
+	if muSig == nil {
+		muSig = NewSignature()
+	}
+
 	// R' <- R · g^r
 	r := blspairing.NewRandomScalar()
 	R := new(bls.G2)
@@ -78,7 +93,7 @@ func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pubkeys 
 	muSig.R.Add(R, muSig.R)
 
 	// X' <- (R')^{t_i + iu_i} · X
-	index := len(pubkeys) + 1 // 1-based indexing
+	index := len(pks) + 1 // 1-based indexing
 	i := blspairing.NewScalarFromInt(index)
 	exp := new(bls.Scalar)
 	exp.Mul(i, sk.U)
@@ -89,13 +104,13 @@ func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pubkeys 
 
 	// Y' <- (\prod_{j=1}^{i-1} T_j U_j^j)^r · Y'
 	Y := blspairing.NewG1Identity()
-	for j, pk := range pubkeys {
+	var UtoJ bls.G1
+	for j, pk := range pks {
 		j = j + 1 // 1-based indexing
 		Y.Add(Y, pk.T)
-		UtoJ := new(bls.G1)
 		exp := blspairing.NewScalarFromInt(j)
 		UtoJ.ScalarMult(exp, pk.U)
-		Y.Add(Y, UtoJ)
+		Y.Add(Y, &UtoJ)
 	}
 	Y.ScalarMult(r, Y)
 	muSig.Y.Add(Y, muSig.Y)
@@ -105,21 +120,22 @@ func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pubkeys 
 	Q.ScalarMult(sk.S, Q)
 	muSig.Q.Add(Q, muSig.Q)
 
-	return nil
+	return muSig, nil
 }
 
-func Verify(pp *PublicParams, pubkeys []*PublicKey, m []byte, sig *Signature) bool {
+func Verify(pp *PublicParams, pks []*PublicKey, m []byte, sig *Signature) bool {
 	aggS := blspairing.NewG2Identity()
 	aggTU := blspairing.NewG1Identity()
-	for j, pk := range pubkeys {
+
+	var UtoJ bls.G1
+	for j, pk := range pks {
 		j = j + 1 // 1-based indexing
 		aggS.Add(aggS, pk.S)
 
 		aggTU.Add(aggTU, pk.T)
-		UtoJ := new(bls.G1)
 		exp := blspairing.NewScalarFromInt(j)
 		UtoJ.ScalarMult(exp, pk.U)
-		aggTU.Add(aggTU, UtoJ)
+		aggTU.Add(aggTU, &UtoJ)
 	}
 	lhs := bls.Pair(blspairing.HashBytesToG1(m, nil), aggS)
 	rhs := bls.Pair(aggTU, sig.R)
