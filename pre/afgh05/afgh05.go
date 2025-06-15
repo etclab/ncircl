@@ -64,11 +64,11 @@ type Ciphertext1 struct {
 	Beta  *bls.G1
 }
 
-func Encrypt(pp *PublicParams, m *bls.Gt, pk *PublicKey) *Ciphertext1 {
+func Encrypt(pp *PublicParams, pk *PublicKey, msg *bls.Gt) *Ciphertext1 {
 	r := blspairing.NewRandomScalar()
 	alpha := new(bls.Gt)
 	alpha.Exp(pp.Z, r)
-	alpha.Mul(alpha, m)
+	alpha.Mul(alpha, msg)
 
 	beta := new(bls.G1)
 	beta.ScalarMult(r, pk.G1ToA)
@@ -93,7 +93,7 @@ func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct1 *Ciphertext1) *Ciphert
 	}
 }
 
-func Decrypt1(pp *PublicParams, ct1 *Ciphertext1, sk *PrivateKey) *bls.Gt {
+func Decrypt1(pp *PublicParams, sk *PrivateKey, ct1 *Ciphertext1) *bls.Gt {
 	aInv := new(bls.Scalar)
 	aInv.Inv(sk.A)
 	tmp1 := new(bls.G2)
@@ -102,21 +102,21 @@ func Decrypt1(pp *PublicParams, ct1 *Ciphertext1, sk *PrivateKey) *bls.Gt {
 	tmp2 := bls.Pair(ct1.Beta, tmp1)
 	tmp2.Inv(tmp2)
 
-	m := new(bls.Gt)
-	m.Mul(ct1.Alpha, tmp2)
+	msg := new(bls.Gt)
+	msg.Mul(ct1.Alpha, tmp2)
 
-	return m
+	return msg
 }
 
-func Decrypt2(pp *PublicParams, ct2 *Ciphertext2, sk *PrivateKey) *bls.Gt {
+func Decrypt2(pp *PublicParams, sk *PrivateKey, ct2 *Ciphertext2) *bls.Gt {
 	bInv := new(bls.Scalar)
 	bInv.Inv(sk.A)
 	tmp := new(bls.Gt)
 	tmp.Exp(ct2.Beta, bInv)
 	tmp.Inv(tmp)
 
-	m := new(bls.Gt)
-	m.Mul(ct2.Alpha, tmp)
+	msg := new(bls.Gt)
+	msg.Mul(ct2.Alpha, tmp)
 
-	return m
+	return msg
 }

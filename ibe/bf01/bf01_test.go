@@ -29,7 +29,7 @@ func TestDecrypt(t *testing.T) {
 func BenchmarkExtract(b *testing.B) {
 	pkg, _ := NewPrivateKeyGenerator()
 	id := []byte("test@example.com")
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = pkg.Extract(id)
 	}
 }
