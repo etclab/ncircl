@@ -1,12 +1,12 @@
-// Package bgoy06 implements the ordered multisignature (OMS) scheme from the
+// Package bgoy07 implements the ordered multisignature (OMS) scheme from the
 // [paper]:
 //
-//	 @inproceedings{07-ccs-ordered_multisignatures_identity_aggregate_signatures,
-//	     title = {Ordered Multisignatures and Identity-Based Sequential Aggregate Signatures, with Applications to Secure Routing},
-//	     author = {Boldyreva, Alexandra and Gentry, Craig and O'Neill, Adam and Yum, Dae Hyun},
-//	     booktitle = {"ACM Conference on Computer and Communications Security (CCS)"},
-//			year = {2007},
-//	 }
+//	@inproceedings{07-ccs-ordered_multisignatures_identity_aggregate_signatures,
+//	    title = {Ordered Multisignatures and Identity-Based Sequential Aggregate Signatures, with Applications to Secure Routing},
+//	    author = {Boldyreva, Alexandra and Gentry, Craig and O'Neill, Adam and Yum, Dae Hyun},
+//	    booktitle = {"ACM Conference on Computer and Communications Security (CCS)"},
+//	    year = {2007},
+//	}
 //
 // Section 3 of that paper describes the scheme.
 //
@@ -53,4 +53,4 @@
 //	Pairing Ops in Verify   3                   5
 //
 // [paper]: https://eprint.iacr.org/2007/438.pdf
-package bgoy06
+package bgoy07

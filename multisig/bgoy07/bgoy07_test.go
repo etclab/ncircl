@@ -1,4 +1,4 @@
-package bgoy06
+package bgoy07
 
 import (
 	"fmt"
@@ -20,9 +20,9 @@ func TestSingleSign(t *testing.T) {
 		t.Fatalf("Alice sign failed: %v", err)
 	}
 
-	valid := Verify(pp, pubkeys, m, muSig)
-	if !valid {
-		t.Fatalf("expected Verify to return true; got false")
+	err = Verify(pp, pubkeys, m, muSig)
+	if err != nil {
+		t.Fatalf("expected Verify to return nil; got %v", err)
 	}
 }
 
@@ -51,9 +51,9 @@ func TestMultiSign(t *testing.T) {
 		t.Fatalf("Carol sign failed: %v", err)
 	}
 
-	valid := Verify(pp, pubkeys, m, muSig)
-	if !valid {
-		t.Fatalf("expected Verify to return true; got false")
+	err = Verify(pp, pubkeys, m, muSig)
+	if err != nil {
+		t.Fatalf("expected Verify to return nil; got %v", err)
 	}
 }
 
@@ -76,7 +76,7 @@ func BenchmarkVerify(b *testing.B) {
 	var pks []*PublicKey
 
 	muSig := NewSignature()
-	for n := 1; n < 1000; n++ {
+	for n := 1; n < 100; n++ {
 		u := newUser(pp)
 		_, err := Sign(pp, u.sk, msg, muSig, pks[:n-1])
 		if err != nil {
@@ -87,12 +87,12 @@ func BenchmarkVerify(b *testing.B) {
 		fmt.Println(n)
 	}
 
-	for n := 1; n < 1000; n *= 2 {
+	for n := 1; n < 100; n *= 2 {
 		b.Run(fmt.Sprintf("nsigs:%d", n), func(b *testing.B) {
 			for b.Loop() {
-				valid := Verify(pp, pks[:n], msg, muSigs[n-1])
-				if !valid {
-					b.Fatal("expected Verify to return true; got false")
+				err := Verify(pp, pks[:n], msg, muSigs[n-1])
+				if err != nil {
+					b.Fatalf("expected Verify to return nil; got %v", err)
 				}
 			}
 		})

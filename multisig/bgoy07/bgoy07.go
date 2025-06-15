@@ -1,8 +1,16 @@
-package bgoy06
+package bgoy07
 
 import (
+	"encoding/hex"
+	"errors"
+
 	bls "github.com/cloudflare/circl/ecc/bls12381"
 	"github.com/etclab/ncircl/util/blspairing"
+)
+
+var (
+	ErrInvalidSignature      = errors.New("bgoy07: invalid signature")
+	ErrPublicKeysNotDistinct = errors.New("bgoy07: public keys not distinct")
 )
 
 type PublicParams struct {
@@ -84,6 +92,11 @@ func (s *Signature) Dup() *Signature {
 func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pks []*PublicKey) (*Signature, error) {
 	if muSig == nil {
 		muSig = NewSignature()
+	} else {
+		err := Verify(pp, pks, m, muSig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// R' <- R · g^r
@@ -123,7 +136,23 @@ func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pks []*P
 	return muSig, nil
 }
 
-func Verify(pp *PublicParams, pks []*PublicKey, m []byte, sig *Signature) bool {
+func Verify(pp *PublicParams, pks []*PublicKey, m []byte, sig *Signature) error {
+	// Check that all public keys are distinct
+
+	seen := make(map[string]bool)
+	for _, pk := range pks {
+		var b []byte
+		b = append(b, pk.S.Bytes()...)
+		b = append(b, pk.T.Bytes()...)
+		b = append(b, pk.U.Bytes()...)
+		h := hex.EncodeToString(b)
+		if _, exists := seen[h]; !exists {
+			seen[h] = true
+		} else {
+			return ErrPublicKeysNotDistinct
+		}
+	}
+
 	aggS := blspairing.NewG2Identity()
 	aggTU := blspairing.NewG1Identity()
 
@@ -146,5 +175,9 @@ func Verify(pp *PublicParams, pks []*PublicKey, m []byte, sig *Signature) bool {
 	got.Mul(got, bls.Pair(pp.G1, sig.X))
 	got.Mul(got, bls.Pair(sig.Y, pp.G2))
 
-	return got.IsEqual(expect)
+	if !got.IsEqual(expect) {
+		return ErrInvalidSignature
+	}
+
+	return nil
 }
