@@ -7,6 +7,11 @@ import (
 	"github.com/etclab/ncircl/util/blspairing"
 )
 
+var (
+	ErrInvalidSignature    = errors.New("bgls03: invalid signature")
+	ErrMessagesNotDistinct = errors.New("bgls03: not all messages are distinct")
+)
+
 type PublicParams struct {
 	G1 *bls.G1
 	G2 *bls.G2
@@ -98,7 +103,7 @@ func Verify(pp *PublicParams, pks []*PublicKey, msgs [][]byte, aggSig *Signature
 		if _, exists := seen[*h]; !exists {
 			seen[*h] = true
 		} else {
-			return errors.New("bgls03.Verify: not all messages are distinct")
+			return ErrMessagesNotDistinct
 		}
 		expect.Mul(bls.Pair(h, pk.V), expect)
 	}
@@ -106,7 +111,7 @@ func Verify(pp *PublicParams, pks []*PublicKey, msgs [][]byte, aggSig *Signature
 	got := bls.Pair(aggSig.Sig, pp.G2)
 
 	if !got.IsEqual(expect) {
-		return errors.New("bgls03.Verify: invalid signature")
+		return ErrInvalidSignature
 	}
 
 	return nil

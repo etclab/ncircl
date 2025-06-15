@@ -16,6 +16,10 @@ import (
 	"github.com/etclab/ncircl/ecc"
 )
 
+var (
+	ErrMessageNotOnCurve = errors.New("bbs98: message is not a point on the curve")
+)
+
 type PublicParams struct {
 	Curve elliptic.Curve
 }
@@ -72,7 +76,7 @@ func Encrypt(pp *PublicParams, m *ecc.Point, pk *PublicKey) (*Ciphertext, error)
 	params := curve.Params()
 
 	if !curve.IsOnCurve(m.X, m.Y) {
-		return nil, errors.New("bbs98: message is not a point on the curve")
+		return nil, ErrMessageNotOnCurve
 	}
 
 	r, err := rand.Int(rand.Reader, params.N)
