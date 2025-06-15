@@ -1,8 +1,12 @@
-// The afgh05 package implements the proxy re-encryption scheme from:
+// The afgh05 package implements the proxy re-encryption scheme from the
+// [paper]:
 //
-//	Giuseppe Ateniese, Kevin Fu, Matthew Green, Susan Hohenberger.
-//	"Improved Proxy Re-Encryption Schemes with Applications to Secure Distributed Storage."
-//	In Network and Distributed System Security Symposium (NDSS), 2005
+//  @inproceedings{05-ndss-improved_proxy_reencryption,
+//      title = {Improved Proxy Re-Encryption Schemes with Applications to Secure Distributed Storage},
+//      author = {Ateniese, Giuseppe and Fu, Kevin and Green, Matthew and Hohenberger, Susan},
+//	    booktitle = {Network and Distributed System Security Symposium (NDSS)},
+//      year = {2005},
+//  }
 //
 // Section 3.1 of the [paper] describes the scheme.  Note that this package
 // implements the "Second Attempt", not the final "Third Attempt."  The
