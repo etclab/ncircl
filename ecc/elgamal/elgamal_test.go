@@ -73,12 +73,12 @@ func BenchmarkEncrypt(b *testing.B) {
 	}
 
 	for _, trial := range trials {
-		pp := NewPublicParams(trial.curve)
-		alicePK, _ := KeyGen(pp)
 		b.Run(trial.name, func(b *testing.B) {
+			pp := NewPublicParams(trial.curve)
+			alicePK, _ := KeyGen(pp)
+			msg := ecc.NewRandomPoint(trial.curve)
 			for b.Loop() {
-				m := ecc.NewRandomPoint(trial.curve)
-				_, err := Encrypt(pp, alicePK, m)
+				_, err := Encrypt(pp, alicePK, msg)
 				if err != nil {
 					b.Fatalf("Encrypt failed: %v", err)
 				}

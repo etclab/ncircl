@@ -24,7 +24,6 @@ type PublicParams struct {
 	Curve elliptic.Curve
 }
 
-// p384.P384()
 func NewPublicParams(curve elliptic.Curve) *PublicParams {
 	pp := new(PublicParams)
 	pp.Curve = curve
@@ -43,12 +42,10 @@ func KeyGen(pp *PublicParams) (*PublicKey, *PrivateKey) {
 	var err error
 	var k []byte
 
-	curve := pp.Curve
-
 	sk := new(PrivateKey)
 	pk := new(PublicKey)
 
-	k, pk.X, pk.Y, err = elliptic.GenerateKey(curve, rand.Reader)
+	k, pk.X, pk.Y, err = elliptic.GenerateKey(pp.Curve, rand.Reader)
 	if err != nil {
 		mu.Panicf("elliptic.GenerateKey failed: %v", err)
 	}
@@ -71,11 +68,11 @@ func newCiphertext() *Ciphertext {
 	return ct
 }
 
-func Encrypt(pp *PublicParams, pk *PublicKey, m *ecc.Point) (*Ciphertext, error) {
+func Encrypt(pp *PublicParams, pk *PublicKey, msg *ecc.Point) (*Ciphertext, error) {
 	curve := pp.Curve
 	params := curve.Params()
 
-	if !curve.IsOnCurve(m.X, m.Y) {
+	if !curve.IsOnCurve(msg.X, msg.Y) {
 		return nil, ErrMessageNotOnCurve
 	}
 
@@ -86,7 +83,7 @@ func Encrypt(pp *PublicParams, pk *PublicKey, m *ecc.Point) (*Ciphertext, error)
 
 	ct := newCiphertext()
 	x, y := curve.ScalarBaseMult(r.Bytes())
-	ct.C1.X, ct.C1.Y = curve.Add(x, y, m.X, m.Y)
+	ct.C1.X, ct.C1.Y = curve.Add(x, y, msg.X, msg.Y)
 
 	ct.C2.X, ct.C2.Y = curve.ScalarMult(pk.X, pk.Y, r.Bytes())
 
@@ -125,13 +122,13 @@ func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) *ecc.Point {
 	kInv := new(big.Int)
 	kInv.ModInverse(sk.K, params.N)
 
-	_, y := curve.ScalarMult(ct.C2.X, ct.C2.Y, kInv.Bytes())
+	x, y := curve.ScalarMult(ct.C2.X, ct.C2.Y, kInv.Bytes())
 
 	negY := new(big.Int).Neg(y)
 	negY.Mod(negY, params.P)
 
-	m := new(ecc.Point)
-	m.X, m.Y = curve.Add(ct.C1.X, ct.C1.Y, ct.C2.X, negY)
+	msg := new(ecc.Point)
+	msg.X, msg.Y = curve.Add(ct.C1.X, ct.C1.Y, x, negY)
 
-	return m
+	return msg
 }
