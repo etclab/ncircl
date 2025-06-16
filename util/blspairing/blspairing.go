@@ -56,6 +56,12 @@ func DupG2(g *bls.G2) *bls.G2 {
 	return a
 }
 
+func HashBytesToG2(msg, domainSepTag []byte) *bls.G2 {
+	g := new(bls.G2)
+	g.Hash(msg, domainSepTag)
+	return g
+}
+
 func NewGtIdentity() *bls.Gt {
 	g := new(bls.Gt)
 	g.SetIdentity()

@@ -2,10 +2,17 @@ package ch07
 
 import (
 	"crypto/ed25519"
-	//"crypto/rand"
+	"crypto/rand"
+	"errors"
+
 	bls "github.com/cloudflare/circl/ecc/bls12381"
-	//"github.com/etclab/mu"
+	"github.com/etclab/mu"
 	"github.com/etclab/ncircl/util/blspairing"
+)
+
+var (
+	ErrInvalidSignature  = errors.New("ch07: invalid signature")
+	ErrInvalidCiphertext = errors.New("ch07: invalid ciphertext")
 )
 
 type PublicParams struct {
@@ -26,8 +33,15 @@ type PrivateKey struct {
 	X *bls.Scalar
 }
 
+func (sk *PrivateKey) PublicKey(pp *PublicParams) *PublicKey {
+	pk := new(PublicKey)
+	pk.Y = new(bls.G1)
+	pk.Y.ScalarMult(sk.X, pp.G1)
+	return pk
+}
+
 type PublicKey struct {
-	G1ToX *bls.G1
+	Y *bls.G1
 }
 
 func KeyGen(pp *PublicParams) (*PublicKey, *PrivateKey) {
@@ -35,8 +49,8 @@ func KeyGen(pp *PublicParams) (*PublicKey, *PrivateKey) {
 	sk.X = blspairing.NewRandomScalar()
 
 	pk := new(PublicKey)
-	pk.G1ToX = new(bls.G1)
-	pk.G1ToX.ScalarMult(sk.X, pp.G1)
+	pk.Y = new(bls.G1)
+	pk.Y.ScalarMult(sk.X, pp.G1)
 
 	return pk, sk
 }
@@ -49,7 +63,7 @@ func ReEncryptionKeyGen(_ *PublicParams, aliceSK *PrivateKey, bobSK *PrivateKey)
 	rk := new(bls.Scalar)
 	rk.Inv(aliceSK.X)
 
-	rk.Mul(bobSK.X, rk)
+	rk.Mul(bobSK.X, rk) /* mod q? */
 
 	return &ReEncryptionKey{
 		RK: rk,
@@ -65,8 +79,40 @@ type Ciphertext struct {
 	S []byte
 }
 
-/*
-func Encrypt(pp *PublicParams, m *bls.Gt, pk *PublicKey) *Ciphertext {
+func (ct *Ciphertext) MessageToSign() []byte {
+	m := make([]byte, 0, 128)
+	data, err := ct.C.MarshalBinary()
+	if err != nil {
+		mu.Panicf("Gt.MarshalBinary() failed: %v", err)
+	}
+	m = append(m, data...)
+	m = append(m, ct.D.Bytes()...)
+	m = append(m, ct.E.Bytes()...)
+	return m
+}
+
+func (ct *Ciphertext) Check(pp *PublicParams, pk *PublicKey) error {
+	msg := ct.MessageToSign()
+	if !ed25519.Verify(ct.A, msg, ct.S) {
+		return ErrInvalidSignature
+	}
+
+	lhs := bls.Pair(ct.B, blspairing.HashBytesToG2(ct.A, nil))
+	rhs := bls.Pair(pk.Y, ct.D)
+	if !lhs.IsEqual(rhs) {
+		return ErrInvalidCiphertext
+	}
+
+	lhs = bls.Pair(ct.B, pp.G2)
+	rhs = bls.Pair(pk.Y, ct.E)
+	if !lhs.IsEqual(rhs) {
+		return ErrInvalidCiphertext
+	}
+
+	return nil
+}
+
+func Encrypt(pp *PublicParams, pk *PublicKey, msg *bls.Gt) *Ciphertext {
 	svk, ssk, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		mu.Panicf("ed25519.GenerateKey failed: %v", err)
@@ -75,44 +121,46 @@ func Encrypt(pp *PublicParams, m *bls.Gt, pk *PublicKey) *Ciphertext {
 	r := blspairing.NewRandomScalar()
 
 	B := new(bls.G1)
-	B.ScalarMult(r, pk.G1ToX)
+	B.ScalarMult(r, pk.Y)
 
-	C := bls.Pair(pp.G1, blspairing.HashBytesToG2(svk))
-	C.ScalarMult(r, C)
-	C.Add(C, m)
+	C := bls.Pair(pp.G1, blspairing.HashBytesToG2(svk, nil))
+	C.Exp(C, r)
+	C.Mul(C, msg)
 
-	D := blspairing.HashBytesToG2(svk)
+	D := blspairing.HashBytesToG2(svk, nil)
 	D.ScalarMult(r, D)
 
-	E := new(bls.G2),
-		E.ScalarMult(r, pp.G2.Generator)
+	E := new(bls.G2)
+	E.ScalarMult(r, pp.G2)
 
-	msgToSign := make([]byte, 0, 128)
-	data, err := C.MarshalBinary()
-	if err != nil {
-		mu.Panicf("Gt.MarshalBinary() failed: %v", err)
-	}
-	msgToSign := append(msgToSign, data)
-	data = D.Bytes()
-	msgToSign := append(msgToSign, data)
-	data = E.Bytes()
-	msgToSign := append(msgToSign, data)
-
-	sig = ed25519.Sign(ssk, msgToSign)
-
-	return &Ciphertext{
+	ct := &Ciphertext{
 		A: svk,
 		B: B,
 		C: C,
 		D: D,
 		E: E,
-		S: sig,
 	}
+
+	m := ct.MessageToSign()
+	ct.S = ed25519.Sign(ssk, m)
+
+	return ct
 }
 
-// TODO: ReEncrypt
+func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) (*bls.Gt, error) {
+	err := ct.Check(pp, sk.PublicKey(pp))
+	if err != nil {
+		return nil, err
+	}
 
-// TODO:
-func Decrypt(pp *PublicParams, ct1 *Ciphertext1, sk *PrivateKey) *bls.Gt {
+	z := bls.Pair(ct.B, blspairing.HashBytesToG2(ct.A, nil))
+	exp := new(bls.Scalar)
+	exp.Inv(sk.X)
+	z.Exp(z, exp)
+	z.Inv(z)
+
+	msg := new(bls.Gt)
+	msg.Mul(ct.C, z)
+
+	return msg, nil
 }
-*/
