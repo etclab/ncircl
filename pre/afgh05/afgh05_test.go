@@ -45,6 +45,15 @@ func BenchmarkKeyGen(b *testing.B) {
 	}
 }
 
+func BenchmarkReEncryptionKeyGen(b *testing.B) {
+	pp := NewPublicParams()
+	_, aliceSK := KeyGen(pp)
+	bobPK, _ := KeyGen(pp)
+	for b.Loop() {
+		_ = ReEncryptionKeyGen(pp, aliceSK, bobPK)
+	}
+}
+
 func BenchmarkEncrypt(b *testing.B) {
 	pp := NewPublicParams()
 	msg := blspairing.NewRandomGt()
@@ -66,10 +75,15 @@ func BenchmarkDecrypt1(b *testing.B) {
 
 func BenchmarkReEncrypt(b *testing.B) {
 	pp := NewPublicParams()
-	_, aliceSK := KeyGen(pp)
+	alicePK, aliceSK := KeyGen(pp)
 	bobPK, _ := KeyGen(pp)
+	rkAliceToBob := ReEncryptionKeyGen(pp, aliceSK, bobPK)
+
+	msg := blspairing.NewRandomGt()
+	ct1 := Encrypt(pp, alicePK, msg)
+
 	for b.Loop() {
-		_ = ReEncryptionKeyGen(pp, aliceSK, bobPK)
+		_ = ReEncrypt(pp, rkAliceToBob, ct1)
 	}
 }
 
