@@ -79,8 +79,25 @@ type Ciphertext struct {
 	S []byte
 }
 
+func (ct *Ciphertext) Dup() *Ciphertext {
+	ctNew := new(Ciphertext)
+
+	ctNew.A = make([]byte, len(ct.A))
+	copy(ctNew.A, ct.A)
+
+	ctNew.B = blspairing.DupG1(ct.B)
+	ctNew.C = blspairing.DupGt(ct.C)
+	ctNew.D = blspairing.DupG2(ct.D)
+	ctNew.E = blspairing.DupG2(ct.E)
+
+	ctNew.S = make([]byte, len(ct.S))
+	copy(ctNew.S, ct.S)
+
+	return ctNew
+}
+
 func (ct *Ciphertext) MessageToSign() []byte {
-	m := make([]byte, 0, 128)
+	m := make([]byte, 0, 1024)
 	data, err := ct.C.MarshalBinary()
 	if err != nil {
 		mu.Panicf("Gt.MarshalBinary() failed: %v", err)
@@ -147,9 +164,17 @@ func Encrypt(pp *PublicParams, pk *PublicKey, msg *bls.Gt) *Ciphertext {
 	return ct
 }
 
+func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, bobPK *PublicKey, ct *Ciphertext) (*Ciphertext, error) {
+	ctNew := ct.Dup()
+	ctNew.B.ScalarMult(rk.RK, ct.B)
+	if err := ctNew.Check(pp, bobPK); err != nil {
+		return nil, err
+	}
+	return ctNew, nil
+}
+
 func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) (*bls.Gt, error) {
-	err := ct.Check(pp, sk.PublicKey(pp))
-	if err != nil {
+	if err := ct.Check(pp, sk.PublicKey(pp)); err != nil {
 		return nil, err
 	}
 

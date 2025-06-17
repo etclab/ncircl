@@ -56,6 +56,26 @@ func KeyGen(pp *PublicParams) (*PublicKey, *PrivateKey) {
 	return pk, sk
 }
 
+type ReEncryptionKey struct {
+	RK *big.Int
+}
+
+// From a to b
+func ReEncryptionKeyGen(pp *PublicParams, a, b *PrivateKey) *ReEncryptionKey {
+	curve := pp.Curve
+	params := curve.Params()
+
+	aInv := new(big.Int)
+	aInv.ModInverse(a.K, params.N)
+
+	rk := new(big.Int)
+	rk.Mul(b.K, aInv)
+
+	return &ReEncryptionKey{
+		RK: rk,
+	}
+}
+
 type Ciphertext struct {
 	C1 *ecc.Point
 	C2 *ecc.Point
@@ -88,26 +108,6 @@ func Encrypt(pp *PublicParams, pk *PublicKey, msg *ecc.Point) (*Ciphertext, erro
 	ct.C2.X, ct.C2.Y = curve.ScalarMult(pk.X, pk.Y, r.Bytes())
 
 	return ct, nil
-}
-
-type ReEncryptionKey struct {
-	RK *big.Int
-}
-
-// From a to b
-func ReEncryptionKeyGen(pp *PublicParams, a, b *PrivateKey) *ReEncryptionKey {
-	curve := pp.Curve
-	params := curve.Params()
-
-	aInv := new(big.Int)
-	aInv.ModInverse(a.K, params.N)
-
-	rk := new(big.Int)
-	rk.Mul(b.K, aInv)
-
-	return &ReEncryptionKey{
-		RK: rk,
-	}
 }
 
 func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct *Ciphertext) {

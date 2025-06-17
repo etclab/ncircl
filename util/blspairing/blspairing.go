@@ -68,6 +68,22 @@ func NewGtIdentity() *bls.Gt {
 	return g
 }
 
+func DupGt(g *bls.Gt) *bls.Gt {
+	a := new(bls.Gt)
+
+	buf, err := g.MarshalBinary()
+	if err != nil {
+		mu.Panicf("Gt.MarshalBinary() failed: %v", err)
+	}
+
+	err = a.UnmarshalBinary(buf)
+	if err != nil {
+		mu.Panicf("Gt.UnmarshalBinary() failed: %v", err)
+	}
+
+	return a
+}
+
 func NewRandomGt() *bls.Gt {
 	a := NewRandomScalar()
 	b := NewRandomScalar()
