@@ -98,19 +98,15 @@ func (ct *Ciphertext) Dup() *Ciphertext {
 
 func (ct *Ciphertext) MessageToSign() []byte {
 	m := make([]byte, 0, 1024)
-	data, err := ct.C.MarshalBinary()
-	if err != nil {
-		mu.Panicf("Gt.MarshalBinary() failed: %v", err)
-	}
-	m = append(m, data...)
+	m = append(m, blspairing.GtToBytes(ct.C)...)
 	m = append(m, ct.D.Bytes()...)
 	m = append(m, ct.E.Bytes()...)
 	return m
 }
 
 func (ct *Ciphertext) Check(pp *PublicParams, pk *PublicKey) error {
-	msg := ct.MessageToSign()
-	if !ed25519.Verify(ct.A, msg, ct.S) {
+	m := ct.MessageToSign()
+	if !ed25519.Verify(ct.A, m, ct.S) {
 		return ErrInvalidSignature
 	}
 

@@ -68,17 +68,25 @@ func NewGtIdentity() *bls.Gt {
 	return g
 }
 
+func GtToBytes(g *bls.Gt) []byte {
+	buf, err := g.MarshalBinary()
+	if err != nil {
+		mu.Panicf("Gt.MarshalBinary failed: %v", err)
+	}
+	return buf
+}
+
 func DupGt(g *bls.Gt) *bls.Gt {
 	a := new(bls.Gt)
 
 	buf, err := g.MarshalBinary()
 	if err != nil {
-		mu.Panicf("Gt.MarshalBinary() failed: %v", err)
+		mu.Panicf("Gt.MarshalBinary failed: %v", err)
 	}
 
 	err = a.UnmarshalBinary(buf)
 	if err != nil {
-		mu.Panicf("Gt.UnmarshalBinary() failed: %v", err)
+		mu.Panicf("Gt.UnmarshalBinary failed: %v", err)
 	}
 
 	return a

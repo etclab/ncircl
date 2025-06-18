@@ -30,10 +30,6 @@ type PrivateKey struct {
 	A *bls.Scalar
 }
 
-type ReEncryptionKey struct {
-	RK *bls.G2
-}
-
 func KeyGen(pp *PublicParams) (*PublicKey, *PrivateKey) {
 	sk := new(PrivateKey)
 	sk.A = blspairing.NewRandomScalar()
@@ -45,6 +41,10 @@ func KeyGen(pp *PublicParams) (*PublicKey, *PrivateKey) {
 	pk.G2ToA.ScalarMult(sk.A, pp.G2)
 
 	return pk, sk
+}
+
+type ReEncryptionKey struct {
+	RK *bls.G2
 }
 
 func ReEncryptionKeyGen(_ *PublicParams, aliceSK *PrivateKey, bobPK *PublicKey) *ReEncryptionKey {
@@ -79,20 +79,6 @@ func Encrypt(pp *PublicParams, pk *PublicKey, msg *bls.Gt) *Ciphertext1 {
 	}
 }
 
-type Ciphertext2 struct {
-	Alpha *bls.Gt
-	Beta  *bls.Gt
-}
-
-func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct1 *Ciphertext1) *Ciphertext2 {
-	beta := bls.Pair(ct1.Beta, rk.RK)
-
-	return &Ciphertext2{
-		Alpha: ct1.Alpha,
-		Beta:  beta,
-	}
-}
-
 func Decrypt1(pp *PublicParams, sk *PrivateKey, ct1 *Ciphertext1) *bls.Gt {
 	aInv := new(bls.Scalar)
 	aInv.Inv(sk.A)
@@ -106,6 +92,20 @@ func Decrypt1(pp *PublicParams, sk *PrivateKey, ct1 *Ciphertext1) *bls.Gt {
 	msg.Mul(ct1.Alpha, tmp2)
 
 	return msg
+}
+
+type Ciphertext2 struct {
+	Alpha *bls.Gt
+	Beta  *bls.Gt
+}
+
+func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct1 *Ciphertext1) *Ciphertext2 {
+	beta := bls.Pair(ct1.Beta, rk.RK)
+
+	return &Ciphertext2{
+		Alpha: ct1.Alpha,
+		Beta:  beta,
+	}
 }
 
 func Decrypt2(pp *PublicParams, sk *PrivateKey, ct2 *Ciphertext2) *bls.Gt {

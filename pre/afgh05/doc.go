@@ -15,9 +15,9 @@
 //
 // This scheme is:
 //   - unidirectional (a re-encryption key from Alice to Bob does not permit
-//     ren-encryption from Bob to Alice)
+//     re-encryption from Bob to Alice)
 //   - single-hop (once re-encrypted, a ciphertext cannot again be re-encrypted)
-//   - CPA-secure
+//   - CPA-secure (aka, semantically secure)
 //
 // [paper]: https://www.ndss-symposium.org/wp-content/uploads/2017/09/Improved-Proxy-Re-Encryption-Schemes-with-Applications-to-Secure-Distributed-Storage-Kevin-Fu.pdf
 // [lecture notes]: https://www.cs.jhu.edu/~susan/600.641/scribes/lecture17.pdf
