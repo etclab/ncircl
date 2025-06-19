@@ -289,7 +289,8 @@ func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct2 *Ciphertext2) (*Cipher
 	tInv := new(bls.Scalar)
 	tInv.Inv(t)
 	C2DoublePrime := new(bls.G1)
-	C2DoublePrime.ScalarMult(tInv, rk.RK) /* problem */
+	/* This is what requires the public key to have two elements instead of one */
+	C2DoublePrime.ScalarMult(tInv, rk.RK)
 
 	C2TriplePrime := new(bls.G2)
 	C2TriplePrime.ScalarMult(t, ct2.C2)
