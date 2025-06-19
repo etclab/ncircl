@@ -20,15 +20,32 @@ func NewRandomScalar() *bls.Scalar {
 	return z
 }
 
+func DupScalar(orig *bls.Scalar) *bls.Scalar {
+	z := new(bls.Scalar)
+	z.Set(orig)
+	return z
+}
+
 func NewScalarFromInt(i int) *bls.Scalar {
-	s := new(bls.Scalar)
-	s.SetUint64(uint64(i))
-	return s
+	z := new(bls.Scalar)
+	z.SetUint64(uint64(i))
+	return z
 }
 
 func NewG1Identity() *bls.G1 {
 	g := new(bls.G1)
 	g.SetIdentity()
+	return g
+}
+
+func NewRandomG1() *bls.G1 {
+	g := new(bls.G1)
+	input := make([]byte, 128)
+	_, err := rand.Read(input)
+	if err != nil {
+		mu.Fatalf("rand.Read failed to generate %d random bytes", len(input))
+	}
+	g.Hash(input, nil)
 	return g
 }
 
