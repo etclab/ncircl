@@ -306,8 +306,8 @@ func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct2 *Ciphertext2) (*Cipher
 		C2Prime:       C2Prime,
 		C2DoublePrime: C2DoublePrime,
 		C2TriplePrime: C2TriplePrime,
-		C3:            blspairing.DupGt(ct2.C3),
-		C4:            blspairing.DupG1(ct2.C4),
+		C3:            blspairing.CloneGt(ct2.C3),
+		C4:            blspairing.CloneG1(ct2.C4),
 		S:             S,
 	}
 

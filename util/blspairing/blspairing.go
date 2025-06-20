@@ -20,7 +20,7 @@ func NewRandomScalar() *bls.Scalar {
 	return z
 }
 
-func DupScalar(orig *bls.Scalar) *bls.Scalar {
+func CloneScalar(orig *bls.Scalar) *bls.Scalar {
 	z := new(bls.Scalar)
 	z.Set(orig)
 	return z
@@ -49,7 +49,7 @@ func NewRandomG1() *bls.G1 {
 	return g
 }
 
-func DupG1(g *bls.G1) *bls.G1 {
+func CloneG1(g *bls.G1) *bls.G1 {
 	a := new(bls.G1)
 	a.SetBytes(g.Bytes())
 	return a
@@ -67,7 +67,7 @@ func NewG2Identity() *bls.G2 {
 	return g
 }
 
-func DupG2(g *bls.G2) *bls.G2 {
+func CloneG2(g *bls.G2) *bls.G2 {
 	a := new(bls.G2)
 	a.SetBytes(g.Bytes())
 	return a
@@ -93,7 +93,7 @@ func GtToBytes(g *bls.Gt) []byte {
 	return buf
 }
 
-func DupGt(g *bls.Gt) *bls.Gt {
+func CloneGt(g *bls.Gt) *bls.Gt {
 	a := new(bls.Gt)
 
 	buf, err := g.MarshalBinary()

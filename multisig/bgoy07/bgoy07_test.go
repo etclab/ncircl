@@ -82,7 +82,7 @@ func BenchmarkVerify(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Sign failed: %v", err)
 		}
-		muSigs = append(muSigs, muSig.Dup())
+		muSigs = append(muSigs, muSig.Clone())
 		pks = append(pks, u.pk)
 		fmt.Println(n)
 	}

@@ -76,13 +76,13 @@ func NewSignature() *Signature {
 	return sig
 }
 
-func (s *Signature) Dup() *Signature {
+func (s *Signature) Clone() *Signature {
 	sig := new(Signature)
 
-	sig.Q = blspairing.DupG1(s.Q)
-	sig.X = blspairing.DupG2(s.X)
-	sig.Y = blspairing.DupG1(s.Y)
-	sig.R = blspairing.DupG2(s.R)
+	sig.Q = blspairing.CloneG1(s.Q)
+	sig.X = blspairing.CloneG2(s.X)
+	sig.Y = blspairing.CloneG1(s.Y)
+	sig.R = blspairing.CloneG2(s.R)
 
 	return sig
 }

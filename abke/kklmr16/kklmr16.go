@@ -87,13 +87,13 @@ type MSK struct {
 func (m *MasterKey) MSK() *MSK {
 	msk := new(MSK)
 
-	msk.G = blspairing.DupScalar(m.GKeyPair.SK)
-	msk.H = blspairing.DupScalar(m.HKeyPair.SK)
-	msk.U = blspairing.DupScalar(m.UKeyPair.SK)
+	msk.G = blspairing.CloneScalar(m.GKeyPair.SK)
+	msk.H = blspairing.CloneScalar(m.HKeyPair.SK)
+	msk.U = blspairing.CloneScalar(m.UKeyPair.SK)
 
 	msk.Js = make([]*bls.Scalar, len(m.JKeyPairs))
 	for i, j := range m.JKeyPairs {
-		msk.Js[i] = blspairing.DupScalar(j.SK)
+		msk.Js[i] = blspairing.CloneScalar(j.SK)
 	}
 
 	return msk
@@ -110,13 +110,13 @@ type MPK struct {
 func (m *MasterKey) MPK() *MPK {
 	mpk := new(MPK)
 
-	mpk.G = blspairing.DupG2(m.GKeyPair.PK)
-	mpk.H = blspairing.DupG2(m.HKeyPair.PK)
-	mpk.U = blspairing.DupG2(m.UKeyPair.PK)
+	mpk.G = blspairing.CloneG2(m.GKeyPair.PK)
+	mpk.H = blspairing.CloneG2(m.HKeyPair.PK)
+	mpk.U = blspairing.CloneG2(m.UKeyPair.PK)
 
 	mpk.Js = make([]*bls.G2, len(m.JKeyPairs))
 	for i, j := range m.JKeyPairs {
-		mpk.Js[i] = blspairing.DupG2(j.PK)
+		mpk.Js[i] = blspairing.CloneG2(j.PK)
 	}
 
 	return mpk
@@ -232,7 +232,7 @@ func Unlink(pp *PublicParams, pk *PublicKey, sk *PrivateKey) (*PublicKey, *Priva
 		newPk.es[i].ScalarMult(r, pk.es[i])
 		newPk.esigs[i] = new(bls.G1)
 		newPk.esigs[i].ScalarMult(r, pk.esigs[i])
-		newSk.Rs[i] = blspairing.DupScalar(sk.Rs[i])
+		newSk.Rs[i] = blspairing.CloneScalar(sk.Rs[i])
 	}
 
 	return newPk, newSk

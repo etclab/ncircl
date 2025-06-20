@@ -1,6 +1,7 @@
 package aesx
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"errors"
@@ -12,6 +13,7 @@ var (
 )
 
 type ECB struct {
+	key []byte
 	blk cipher.Block
 }
 
@@ -20,7 +22,7 @@ func NewECB(key []byte) (*ECB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ECB{blk: ecb}, nil
+	return &ECB{blk: ecb, key: bytes.Clone(key)}, nil
 }
 
 func (ecb *ECB) Encrypt(dst, src []byte) error {

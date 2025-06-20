@@ -79,16 +79,16 @@ type Ciphertext struct {
 	S []byte
 }
 
-func (ct *Ciphertext) Dup() *Ciphertext {
+func (ct *Ciphertext) Clone() *Ciphertext {
 	ctNew := new(Ciphertext)
 
 	ctNew.A = make([]byte, len(ct.A))
 	copy(ctNew.A, ct.A)
 
-	ctNew.B = blspairing.DupG1(ct.B)
-	ctNew.C = blspairing.DupGt(ct.C)
-	ctNew.D = blspairing.DupG2(ct.D)
-	ctNew.E = blspairing.DupG2(ct.E)
+	ctNew.B = blspairing.CloneG1(ct.B)
+	ctNew.C = blspairing.CloneGt(ct.C)
+	ctNew.D = blspairing.CloneG2(ct.D)
+	ctNew.E = blspairing.CloneG2(ct.E)
 
 	ctNew.S = make([]byte, len(ct.S))
 	copy(ctNew.S, ct.S)
@@ -161,7 +161,7 @@ func Encrypt(pp *PublicParams, pk *PublicKey, msg *bls.Gt) *Ciphertext {
 }
 
 func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, bobPK *PublicKey, ct *Ciphertext) (*Ciphertext, error) {
-	ctNew := ct.Dup()
+	ctNew := ct.Clone()
 	ctNew.B.ScalarMult(rk.RK, ct.B)
 	if err := ctNew.Check(pp, bobPK); err != nil {
 		return nil, err
