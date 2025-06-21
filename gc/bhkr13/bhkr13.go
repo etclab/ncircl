@@ -2,8 +2,6 @@ package bhkr13
 
 import (
 	"errors"
-	"fmt"
-	"os"
 
 	"github.com/etclab/mu"
 	"github.com/etclab/ncircl/util/aesx"
@@ -236,11 +234,7 @@ func (gc *GarbledCircuit) garbleStandardGate(gate GarbleGate, delta uint128.Uint
 	out0 := &gc.Wires[2*gate.Output]
 	out1 := &gc.Wires[2*gate.Output+1]
 
-	fmt.Fprintln(os.Stderr, "A")
-
-	table := gc.Table[idx-nxors:]
-
-	fmt.Fprintln(os.Stderr, "B")
+	table := gc.Table[3*(idx-nxors):]
 
 	if gate.Type == GarbleGateTypeXOR {
 		*out0 = uint128.Xor(A0, B0)
@@ -249,39 +243,28 @@ func (gc *GarbledCircuit) garbleStandardGate(gate GarbleGate, delta uint128.Uint
 		*out0 = A1
 		*out1 = A0
 	} else {
-		fmt.Fprintln(os.Stderr, "C")
 		var keys [4]uint128.Uint128
 		var mask [4]uint128.Uint128
 		var blocks [4]uint128.Uint128
 		var newToken, newToken2 uint128.Uint128
 		var label0, label1 *uint128.Uint128
 
-		fmt.Fprintln(os.Stderr, "D")
-
 		tweak := uint128.Uint128{H: uint64(idx), L: 0}
 		lsb0 := A0.Lsb()
 		lsb1 := B0.Lsb()
-
-		fmt.Fprintln(os.Stderr, "E")
 
 		A0 = garbleDouble(A0)
 		A1 = garbleDouble(A1)
 		B0 = garbleDouble(garbleDouble(B0))
 		B1 = garbleDouble(garbleDouble(B1))
 
-		fmt.Fprintln(os.Stderr, "F")
-
 		keys[0] = uint128.Xor(uint128.Xor(A0, B0), tweak)
 		keys[1] = uint128.Xor(uint128.Xor(A0, B1), tweak)
 		keys[2] = uint128.Xor(uint128.Xor(A1, B0), tweak)
 		keys[3] = uint128.Xor(uint128.Xor(A1, B1), tweak)
 
-		fmt.Fprintln(os.Stderr, "G")
-
 		// memcpy(mask, keys, sizeof mask)
 		copy(mask[:], keys[:])
-
-		fmt.Fprintln(os.Stderr, "H")
 
 		// AES_ecb_encrypt_blks(keys, 4, key)
 		keysBytes := make([]byte, 0, 512)
@@ -289,29 +272,22 @@ func (gc *GarbledCircuit) garbleStandardGate(gate GarbleGate, delta uint128.Uint
 		keysBytes = append(keysBytes, keys[1].Bytes()...)
 		keysBytes = append(keysBytes, keys[2].Bytes()...)
 		keysBytes = append(keysBytes, keys[3].Bytes()...)
-		fmt.Fprintln(os.Stderr, "I", len(keysBytes))
 		aesx.EncryptECB(gc.GlobalKey.Bytes(), keysBytes, keysBytes)
-		fmt.Fprintln(os.Stderr, "J")
 		keys[0].SetBytes(keysBytes[:16])
 		keys[1].SetBytes(keysBytes[16:32])
 		keys[2].SetBytes(keysBytes[32:48])
 		keys[3].SetBytes(keysBytes[48:])
-		fmt.Fprintln(os.Stderr, "K")
 
 		mask[0] = uint128.Xor(mask[0], keys[0])
 		mask[1] = uint128.Xor(mask[1], keys[1])
 		mask[2] = uint128.Xor(mask[2], keys[2])
 		mask[3] = uint128.Xor(mask[2], keys[3])
 
-		fmt.Fprintln(os.Stderr, "L")
-
 		maskIdx := 2*lsb0 + lsb1
 		newToken = mask[maskIdx]
 		newToken2 = uint128.Xor(delta, newToken)
 		label0 = out0
 		label1 = out1
-
-		fmt.Fprintln(os.Stderr, "M")
 
 		if (lsb1 & lsb0) == 1 {
 			*label0 = newToken2
@@ -321,36 +297,24 @@ func (gc *GarbledCircuit) garbleStandardGate(gate GarbleGate, delta uint128.Uint
 			*label1 = newToken2
 		}
 
-		fmt.Fprintln(os.Stderr, "O")
-
 		blocks[0] = *label0
 		blocks[1] = *label0
 		blocks[2] = *label0
 		blocks[3] = *label1
 
-		fmt.Fprintln(os.Stderr, "P")
-
-		// The problem is with the table indexing
-
 		if (2*lsb0 + lsb1) != 0 {
 			table[2*lsb0+lsb1-1] = uint128.Xor(blocks[0], mask[0])
 		}
-		fmt.Fprintln(os.Stderr, "Q")
 		if (2*lsb0 + 1 - lsb1) != 0 {
 			table[2*lsb0+1-lsb1-1] = uint128.Xor(blocks[1], mask[1])
 		}
-		fmt.Fprintf(os.Stderr, "R %d %d", 2*(1-lsb0)+lsb1-1, len(table))
 		if (2*(1-lsb0) + lsb1) != 0 {
 			table[2*(1-lsb0)+lsb1-1] = uint128.Xor(blocks[2], mask[2])
 		}
-		fmt.Fprintln(os.Stderr, "S")
 		if (2*(1-lsb0) + (1 - lsb1)) != 0 {
 			table[2*(1-lsb0)+(1-lsb1)-1] = uint128.Xor(blocks[3], mask[3])
 		}
-		fmt.Fprintln(os.Stderr, "T")
 	}
-
-	fmt.Fprintln(os.Stderr, "U")
 }
 
 // src/garble.c//_garble_standard
@@ -369,7 +333,7 @@ func (gc *GarbledCircuit) Garble(inputLabels, outputLabels []uint128.Uint128) er
 	var delta uint128.Uint128
 
 	gc.Wires = make([]uint128.Uint128, 2*gc.NumWires)
-	gc.Table = make([]uint128.Uint128, len(gc.Gates)-gc.NumXors)
+	gc.Table = make([]uint128.Uint128, 3*(len(gc.Gates)-gc.NumXors))
 
 	if inputLabels != nil {
 		for i := 0; i < gc.NumInputs; i++ {
