@@ -28,6 +28,21 @@ const (
 	GarbleTypePrivacyFree
 )
 
+func (gt GarbleType) String() string {
+	switch gt {
+	case GarbleTypeStandard:
+		return "standard"
+	case GarbleTypeHalfGates:
+		return "half-gates"
+	case GarbleTypePrivacyFree:
+		return "privacy-free"
+	default:
+		mu.BUG("uknown GarbleType %d", gt)
+	}
+
+	return "ERROR-Uknown-Garble-Type" // NOTREACHED: appease compiler
+}
+
 type GarbleGateType int
 
 // src/garble.h::garble_gate_type_e enum
