@@ -30,8 +30,8 @@ func (x *Uint128) SetBytes(b []byte) error {
 	if len(b) != SizeOfUint128 {
 		return ErrInvalidSize
 	}
-	x.H = binary.BigEndian.Uint64(b[:8])
-	x.L = binary.BigEndian.Uint64(b[8:])
+	x.L = binary.LittleEndian.Uint64(b[:8])
+	x.H = binary.LittleEndian.Uint64(b[8:])
 	return nil
 }
 
@@ -62,8 +62,8 @@ func Random() Uint128 {
 // Big-Endian
 func (x *Uint128) Bytes() []byte {
 	b := make([]byte, SizeOfUint128)
-	binary.BigEndian.PutUint64(b[:8], x.H)
-	binary.BigEndian.PutUint64(b[8:], x.L)
+	binary.LittleEndian.PutUint64(b[:8], x.L)
+	binary.LittleEndian.PutUint64(b[8:], x.H)
 	return b
 }
 
@@ -79,7 +79,7 @@ func Equal(x, y Uint128) bool {
 func Xor(x, y Uint128) Uint128 {
 	z := Uint128{}
 	z.H = x.H ^ y.H
-	z.L = x.H ^ y.H
+	z.L = x.L ^ y.L
 	return z
 }
 
