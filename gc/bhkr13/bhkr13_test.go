@@ -1,12 +1,16 @@
 package bhkr13
 
 import (
+	"crypto/rand"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/etclab/mu"
 	"github.com/etclab/ncircl/util/uint128"
 )
+
+var garbleTypes = []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
 
 func subtestName(inputBits []bool) string {
 	strs := make([]string, len(inputBits))
@@ -19,6 +23,35 @@ func subtestName(inputBits []bool) string {
 	}
 
 	return strings.Join(strs, "")
+}
+
+func randomInputBits(n int) []bool {
+	inputBits := make([]bool, n)
+	var b [1]byte
+
+	for i := 0; i < n; i++ {
+		// get a random byte
+		_, err := rand.Read(b[:])
+		if err != nil {
+			mu.Panicf("rand.Read failed: %v", err)
+		}
+
+		// extract lowest bit
+		bit := b[0] & 1
+
+		inputBits[i] = mu.IntToBool(int(bit))
+	}
+
+	return inputBits
+}
+
+func andBits(bits []bool) bool {
+	for _, b := range bits {
+		if b == false {
+			return false
+		}
+	}
+	return true
 }
 
 func TestGateAND(t *testing.T) {
@@ -35,7 +68,6 @@ func TestGateAND(t *testing.T) {
 	numInputs := 2
 	numOutputs := 1
 
-	garbleTypes := []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
 	for _, garbleType := range garbleTypes {
 		inputLabels := make([]uint128.Uint128, 2*numInputs)
 		outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -87,7 +119,6 @@ func TestGateANDMapOutputs(t *testing.T) {
 	numInputs := 2
 	numOutputs := 1
 
-	garbleTypes := []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
 	for _, garbleType := range garbleTypes {
 		inputLabels := make([]uint128.Uint128, 2*numInputs)
 		outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -144,7 +175,6 @@ func TestGateXOR(t *testing.T) {
 	numInputs := 2
 	numOutputs := 1
 
-	garbleTypes := []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
 	for _, garbleType := range garbleTypes {
 		inputLabels := make([]uint128.Uint128, 2*numInputs)
 		outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -197,7 +227,6 @@ func TestGateXORMapOutputs(t *testing.T) {
 	numInputs := 2
 	numOutputs := 1
 
-	garbleTypes := []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
 	for _, garbleType := range garbleTypes {
 		inputLabels := make([]uint128.Uint128, 2*numInputs)
 		outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -252,7 +281,6 @@ func TestGateNOT(t *testing.T) {
 	numInputs := 1
 	numOutputs := 1
 
-	garbleTypes := []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
 	for _, garbleType := range garbleTypes {
 		inputLabels := make([]uint128.Uint128, 2*numInputs)
 		outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -303,7 +331,6 @@ func TestGateNOTMapOutputs(t *testing.T) {
 	numInputs := 1
 	numOutputs := 1
 
-	garbleTypes := []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
 	for _, garbleType := range garbleTypes {
 		inputLabels := make([]uint128.Uint128, 2*numInputs)
 		outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -371,7 +398,6 @@ func TestCircuitAND(t *testing.T) {
 
 	numOutputs := 1
 
-	garbleTypes := []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
 	for _, garbleType := range garbleTypes {
 		for _, trial := range trials {
 			numInputs := len(trial.inputBits)
@@ -410,6 +436,93 @@ func TestCircuitAND(t *testing.T) {
 
 				if outputBits[0] != trial.expected {
 					t.Errorf("expected output of %t, but got %t", trial.expected, outputBits[0])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkGarbleCircuitAND(b *testing.B) {
+
+	numOutputs := 1
+
+	for _, garbleType := range garbleTypes {
+		for numInputs := 2; numInputs < 32; numInputs++ {
+			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
+				inputLabels := make([]uint128.Uint128, 2*numInputs)
+				outputLabels := make([]uint128.Uint128, 2*numOutputs)
+				gc := NewGarbledCircuit(numInputs, numOutputs, garbleType, nil)
+				gc.StartBuilding()
+
+				inputWires := make([]int, numInputs)
+				for i := 0; i < len(inputWires); i++ {
+					inputWires[i] = i
+				}
+				outputWires := make([]int, numOutputs)
+
+				gc.CircuitAND(inputWires, outputWires)
+				gc.FinishBuilding(outputWires)
+
+				for b.Loop() {
+					err := gc.Garble(nil, outputLabels)
+					if err != nil {
+						b.Fatalf("gc.Garble failed: %v", err)
+					}
+					for i := 0; i < numInputs; i++ {
+						inputLabels[2*i] = gc.Wires[2*i]
+						inputLabels[2*i+1] = gc.Wires[2*i+1]
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEvalCircuitAND(b *testing.B) {
+
+	numOutputs := 1
+
+	for _, garbleType := range garbleTypes {
+		for numInputs := 2; numInputs < 32; numInputs++ {
+			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
+				inputBits := randomInputBits(numInputs)
+				expected := andBits(inputBits)
+
+				inputLabels := make([]uint128.Uint128, 2*numInputs)
+				outputLabels := make([]uint128.Uint128, 2*numOutputs)
+				gc := NewGarbledCircuit(numInputs, numOutputs, garbleType, nil)
+				gc.StartBuilding()
+
+				inputWires := make([]int, numInputs)
+				for i := 0; i < len(inputWires); i++ {
+					inputWires[i] = i
+				}
+				outputWires := make([]int, numOutputs)
+
+				gc.CircuitAND(inputWires, outputWires)
+				gc.FinishBuilding(outputWires)
+
+				err := gc.Garble(nil, outputLabels)
+				if err != nil {
+					b.Fatalf("gc.Garble failed: %v", err)
+				}
+				for i := 0; i < numInputs; i++ {
+					inputLabels[2*i] = gc.Wires[2*i]
+					inputLabels[2*i+1] = gc.Wires[2*i+1]
+				}
+
+				computedOutputLabels := make([]uint128.Uint128, numOutputs)
+				outputBits := make([]bool, numOutputs)
+				extractedLabels := ExtractLabels(inputLabels, inputBits)
+
+				for b.Loop() {
+					err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
+					if err != nil {
+						b.Fatalf("gc.Eval failed: %v", err)
+					}
+					if outputBits[0] != expected {
+						b.Fatalf("expected output of %t, but got %t", expected, outputBits[0])
+					}
 				}
 			})
 		}
