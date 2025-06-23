@@ -2,23 +2,34 @@ package bhkr13
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/etclab/ncircl/util/uint128"
 )
 
-const Type = GarbleTypePrivacyFree
+func subtestName(inputBits []bool) string {
+	strs := make([]string, len(inputBits))
+	for i, b := range inputBits {
+		if b {
+			strs[i] = "1"
+		} else {
+			strs[i] = "0"
+		}
+	}
+
+	return strings.Join(strs, "")
+}
 
 func TestGateAND(t *testing.T) {
 	trials := []struct {
-		input0   bool
-		input1   bool
-		expected bool
+		inputBits []bool
+		expected  bool
 	}{
-		{false, false, false},
-		{false, true, false},
-		{true, false, false},
-		{true, true, true},
+		{[]bool{false, false}, false},
+		{[]bool{false, true}, false},
+		{[]bool{true, false}, false},
+		{[]bool{true, true}, true},
 	}
 
 	numInputs := 2
@@ -44,12 +55,11 @@ func TestGateAND(t *testing.T) {
 		}
 
 		for _, trial := range trials {
-			t.Run(fmt.Sprintf("%v/%t-AND-%t", garbleType, trial.input0, trial.input1), func(t *testing.T) {
-				inputBits := []bool{trial.input0, trial.input1}
+			t.Run(fmt.Sprintf("%v/%s", garbleType, subtestName(trial.inputBits)), func(t *testing.T) {
 				computedOutputLabels := make([]uint128.Uint128, numOutputs)
 				outputBits := make([]bool, numOutputs)
 
-				extractedLabels := ExtractLabels(inputLabels, inputBits)
+				extractedLabels := ExtractLabels(inputLabels, trial.inputBits)
 				err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
 				if err != nil {
 					t.Fatalf("gc.Eval failed: %v", err)
@@ -65,14 +75,13 @@ func TestGateAND(t *testing.T) {
 
 func TestGateANDMapOutputs(t *testing.T) {
 	trials := []struct {
-		input0   bool
-		input1   bool
-		expected bool
+		inputBits []bool
+		expected  bool
 	}{
-		{false, false, false},
-		{false, true, false},
-		{true, false, false},
-		{true, true, true},
+		{[]bool{false, false}, false},
+		{[]bool{false, true}, false},
+		{[]bool{true, false}, false},
+		{[]bool{true, true}, true},
 	}
 
 	numInputs := 2
@@ -99,11 +108,10 @@ func TestGateANDMapOutputs(t *testing.T) {
 		}
 
 		for _, trial := range trials {
-			t.Run(fmt.Sprintf("%v/%t-AND-%t", garbleType, trial.input0, trial.input1), func(t *testing.T) {
-				inputBits := []bool{trial.input0, trial.input1}
+			t.Run(fmt.Sprintf("%v/%s", garbleType, subtestName(trial.inputBits)), func(t *testing.T) {
 				computedOutputLabels := make([]uint128.Uint128, numOutputs)
 
-				extractedLabels := ExtractLabels(inputLabels, inputBits)
+				extractedLabels := ExtractLabels(inputLabels, trial.inputBits)
 				err = gc.Eval(extractedLabels, computedOutputLabels, nil)
 				if err != nil {
 					t.Fatalf("gc.Eval failed: %v", err)
@@ -124,14 +132,13 @@ func TestGateANDMapOutputs(t *testing.T) {
 
 func TestGateXOR(t *testing.T) {
 	trials := []struct {
-		input0   bool
-		input1   bool
-		expected bool
+		inputBits []bool
+		expected  bool
 	}{
-		{false, false, false},
-		{false, true, true},
-		{true, false, true},
-		{true, true, false},
+		{[]bool{false, false}, false},
+		{[]bool{false, true}, true},
+		{[]bool{true, false}, true},
+		{[]bool{true, true}, false},
 	}
 
 	numInputs := 2
@@ -158,12 +165,11 @@ func TestGateXOR(t *testing.T) {
 		}
 
 		for _, trial := range trials {
-			t.Run(fmt.Sprintf("%v/%t-XOR-%t", garbleType, trial.input0, trial.input1), func(t *testing.T) {
-				inputBits := []bool{trial.input0, trial.input1}
+			t.Run(fmt.Sprintf("%v/%s", garbleType, subtestName(trial.inputBits)), func(t *testing.T) {
 				computedOutputLabels := make([]uint128.Uint128, numOutputs)
 				outputBits := make([]bool, numOutputs)
 
-				extractedLabels := ExtractLabels(inputLabels, inputBits)
+				extractedLabels := ExtractLabels(inputLabels, trial.inputBits)
 				err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
 				if err != nil {
 					t.Fatalf("gc.Eval failed: %v", err)
@@ -179,14 +185,13 @@ func TestGateXOR(t *testing.T) {
 
 func TestGateXORMapOutputs(t *testing.T) {
 	trials := []struct {
-		input0   bool
-		input1   bool
-		expected bool
+		inputBits []bool
+		expected  bool
 	}{
-		{false, false, false},
-		{false, true, true},
-		{true, false, true},
-		{true, true, false},
+		{[]bool{false, false}, false},
+		{[]bool{false, true}, true},
+		{[]bool{true, false}, true},
+		{[]bool{true, true}, false},
 	}
 
 	numInputs := 2
@@ -213,11 +218,10 @@ func TestGateXORMapOutputs(t *testing.T) {
 		}
 
 		for _, trial := range trials {
-			t.Run(fmt.Sprintf("%v/%t-XOR-%t", garbleType, trial.input0, trial.input1), func(t *testing.T) {
-				inputBits := []bool{trial.input0, trial.input1}
+			t.Run(fmt.Sprintf("%v/%s", garbleType, subtestName(trial.inputBits)), func(t *testing.T) {
 				computedOutputLabels := make([]uint128.Uint128, numOutputs)
 
-				extractedLabels := ExtractLabels(inputLabels, inputBits)
+				extractedLabels := ExtractLabels(inputLabels, trial.inputBits)
 				err = gc.Eval(extractedLabels, computedOutputLabels, nil)
 				if err != nil {
 					t.Fatalf("gc.Eval failed: %v", err)
@@ -238,11 +242,11 @@ func TestGateXORMapOutputs(t *testing.T) {
 
 func TestGateNOT(t *testing.T) {
 	trials := []struct {
-		input0   bool
-		expected bool
+		inputBits []bool
+		expected  bool
 	}{
-		{false, true},
-		{true, false},
+		{[]bool{false}, true},
+		{[]bool{true}, false},
 	}
 
 	numInputs := 1
@@ -269,12 +273,11 @@ func TestGateNOT(t *testing.T) {
 		}
 
 		for _, trial := range trials {
-			t.Run(fmt.Sprintf("%v/NOT-%t", garbleType, trial.input0), func(t *testing.T) {
-				inputBits := []bool{trial.input0}
+			t.Run(fmt.Sprintf("%v/%s", garbleType, subtestName(trial.inputBits)), func(t *testing.T) {
 				computedOutputLabels := make([]uint128.Uint128, numOutputs)
 				outputBits := make([]bool, numOutputs)
 
-				extractedLabels := ExtractLabels(inputLabels, inputBits)
+				extractedLabels := ExtractLabels(inputLabels, trial.inputBits)
 				err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
 				if err != nil {
 					t.Fatalf("gc.Eval failed: %v", err)
@@ -290,11 +293,11 @@ func TestGateNOT(t *testing.T) {
 
 func TestGateNOTMapOutputs(t *testing.T) {
 	trials := []struct {
-		input0   bool
-		expected bool
+		inputBits []bool
+		expected  bool
 	}{
-		{false, true},
-		{true, false},
+		{[]bool{false}, true},
+		{[]bool{true}, false},
 	}
 
 	numInputs := 1
@@ -321,11 +324,10 @@ func TestGateNOTMapOutputs(t *testing.T) {
 		}
 
 		for _, trial := range trials {
-			t.Run(fmt.Sprintf("%v/NOT-%t", garbleType, trial.input0), func(t *testing.T) {
-				inputBits := []bool{trial.input0}
+			t.Run(fmt.Sprintf("%v/%s", garbleType, subtestName(trial.inputBits)), func(t *testing.T) {
 				computedOutputLabels := make([]uint128.Uint128, numOutputs)
 
-				extractedLabels := ExtractLabels(inputLabels, inputBits)
+				extractedLabels := ExtractLabels(inputLabels, trial.inputBits)
 				err = gc.Eval(extractedLabels, computedOutputLabels, nil)
 				if err != nil {
 					t.Fatalf("gc.Eval failed: %v", err)
@@ -338,6 +340,76 @@ func TestGateNOTMapOutputs(t *testing.T) {
 
 				if outputBits[0] != trial.expected {
 					t.Errorf("expected map output of %t, but got %t", trial.expected, outputBits[0])
+				}
+			})
+		}
+	}
+}
+
+func TestCircuitAND(t *testing.T) {
+	trials := []struct {
+		inputBits []bool
+		expected  bool
+	}{
+		{[]bool{false, false}, false},
+		{[]bool{false, true}, false},
+		{[]bool{true, false}, false},
+		{[]bool{true, true}, true},
+
+		// just a few examples, not exhaustive
+		{[]bool{false, false, false}, false},
+		{[]bool{false, true, false}, false},
+		{[]bool{true, true, false}, false},
+		{[]bool{true, true, true}, true},
+
+		// just a few examples, not exhaustive
+		{[]bool{false, false, false, false}, false},
+		{[]bool{false, true, false, false}, false},
+		{[]bool{true, true, true, false}, false},
+		{[]bool{true, true, true, true}, true},
+	}
+
+	numOutputs := 1
+
+	garbleTypes := []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
+	for _, garbleType := range garbleTypes {
+		for _, trial := range trials {
+			numInputs := len(trial.inputBits)
+			inputLabels := make([]uint128.Uint128, 2*numInputs)
+			outputLabels := make([]uint128.Uint128, 2*numOutputs)
+			gc := NewGarbledCircuit(numInputs, numOutputs, garbleType, nil)
+			gc.StartBuilding()
+
+			inputWires := make([]int, numInputs)
+			for i := 0; i < len(inputWires); i++ {
+				inputWires[i] = i
+			}
+			outputWires := make([]int, numOutputs)
+
+			gc.CircuitAND(inputWires, outputWires)
+			gc.FinishBuilding(outputWires)
+
+			err := gc.Garble(nil, outputLabels)
+			if err != nil {
+				t.Fatalf("gc.Garble failed: %v", err)
+			}
+			for i := 0; i < numInputs; i++ {
+				inputLabels[2*i] = gc.Wires[2*i]
+				inputLabels[2*i+1] = gc.Wires[2*i+1]
+			}
+
+			t.Run(fmt.Sprintf("%v/%s", garbleType, subtestName(trial.inputBits)), func(t *testing.T) {
+				computedOutputLabels := make([]uint128.Uint128, numOutputs)
+				outputBits := make([]bool, numOutputs)
+
+				extractedLabels := ExtractLabels(inputLabels, trial.inputBits)
+				err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
+				if err != nil {
+					t.Fatalf("gc.Eval failed: %v", err)
+				}
+
+				if outputBits[0] != trial.expected {
+					t.Errorf("expected output of %t, but got %t", trial.expected, outputBits[0])
 				}
 			})
 		}
