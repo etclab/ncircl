@@ -624,10 +624,18 @@ func (gc *GarbledCircuit) Eval(inputLabels, outputLabels []uint128.Uint128, outp
 }
 
 // src/eval.c::garble_extract_labels
-func ExtractLabels(extractedLabels, labels []uint128.Uint128, bits []bool, n int) {
-	for i := 0; i < n; i++ {
-		extractedLabels[i] = labels[2*i+mu.BoolToInt(bits[i])]
+func ExtractLabels(inputLabels []uint128.Uint128, bits []bool) []uint128.Uint128 {
+	if 2*len(bits) != len(inputLabels) {
+		mu.BUG("bhkr13: number of inputs labels is not twice the number of input bits (%d xinput lables and %d input bits)", len(inputLabels), len(bits))
 	}
+
+	n := len(inputLabels) / 2
+	extractedLabels := make([]uint128.Uint128, n)
+	for i := 0; i < n; i++ {
+		extractedLabels[i] = inputLabels[2*i+mu.BoolToInt(bits[i])]
+	}
+
+	return extractedLabels
 }
 
 // src/eval.c::garble_map_outputs

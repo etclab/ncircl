@@ -44,19 +44,18 @@ func TestGateAND(t *testing.T) {
 
 	for _, trial := range trials {
 		t.Run(fmt.Sprintf("%t-AND-%t", trial.input0, trial.input1), func(t *testing.T) {
-			inputs := []bool{trial.input0, trial.input1}
-			extractedLabels := make([]uint128.Uint128, numInputs)
+			inputBits := []bool{trial.input0, trial.input1}
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
-			outputs := make([]bool, numOutputs)
+			outputBits := make([]bool, numOutputs)
 
-			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
-			err = gc.Eval(extractedLabels, computedOutputLabels, outputs)
+			extractedLabels := ExtractLabels(inputLabels, inputBits)
+			err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
 			if err != nil {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			if outputs[0] != trial.expected {
-				t.Errorf("expected output of %t, but got %t", trial.expected, outputs[0])
+			if outputBits[0] != trial.expected {
+				t.Errorf("expected output of %t, but got %t", trial.expected, outputBits[0])
 			}
 		})
 	}
@@ -97,23 +96,22 @@ func TestGateANDMapOutputs(t *testing.T) {
 
 	for _, trial := range trials {
 		t.Run(fmt.Sprintf("%t-AND-%t", trial.input0, trial.input1), func(t *testing.T) {
-			inputs := []bool{trial.input0, trial.input1}
-			extractedLabels := make([]uint128.Uint128, numInputs)
+			inputBits := []bool{trial.input0, trial.input1}
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
 
-			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
+			extractedLabels := ExtractLabels(inputLabels, inputBits)
 			err = gc.Eval(extractedLabels, computedOutputLabels, nil)
 			if err != nil {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			outputs, err := MapOutputs(outputLabels, computedOutputLabels)
+			outputBits, err := MapOutputs(outputLabels, computedOutputLabels)
 			if err != nil {
 				t.Fatalf("MapOutputs failed: %v", err)
 			}
 
-			if outputs[0] != trial.expected {
-				t.Errorf("expected map output of %t, but got %t", trial.expected, outputs[0])
+			if outputBits[0] != trial.expected {
+				t.Errorf("expected map output of %t, but got %t", trial.expected, outputBits[0])
 			}
 		})
 	}
@@ -154,19 +152,18 @@ func TestGateXOR(t *testing.T) {
 
 	for _, trial := range trials {
 		t.Run(fmt.Sprintf("%t-XOR-%t", trial.input0, trial.input1), func(t *testing.T) {
-			inputs := []bool{trial.input0, trial.input1}
-			extractedLabels := make([]uint128.Uint128, numInputs)
+			inputBits := []bool{trial.input0, trial.input1}
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
-			outputs := make([]bool, numOutputs)
+			outputBits := make([]bool, numOutputs)
 
-			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
-			err = gc.Eval(extractedLabels, computedOutputLabels, outputs)
+			extractedLabels := ExtractLabels(inputLabels, inputBits)
+			err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
 			if err != nil {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			if outputs[0] != trial.expected {
-				t.Errorf("expected output of %t, but got %t", trial.expected, outputs[0])
+			if outputBits[0] != trial.expected {
+				t.Errorf("expected output of %t, but got %t", trial.expected, outputBits[0])
 			}
 		})
 	}
@@ -207,23 +204,22 @@ func TestGateXORMapOutputs(t *testing.T) {
 
 	for _, trial := range trials {
 		t.Run(fmt.Sprintf("%t-XOR-%t", trial.input0, trial.input1), func(t *testing.T) {
-			inputs := []bool{trial.input0, trial.input1}
-			extractedLabels := make([]uint128.Uint128, numInputs)
+			inputBits := []bool{trial.input0, trial.input1}
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
 
-			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
+			extractedLabels := ExtractLabels(inputLabels, inputBits)
 			err = gc.Eval(extractedLabels, computedOutputLabels, nil)
 			if err != nil {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			outputs, err := MapOutputs(outputLabels, computedOutputLabels)
+			outputBits, err := MapOutputs(outputLabels, computedOutputLabels)
 			if err != nil {
 				t.Fatalf("MapOutputs failed: %v", err)
 			}
 
-			if outputs[0] != trial.expected {
-				t.Errorf("expected map output of %t, but got %t", trial.expected, outputs[0])
+			if outputBits[0] != trial.expected {
+				t.Errorf("expected map output of %t, but got %t", trial.expected, outputBits[0])
 			}
 		})
 	}
@@ -261,19 +257,18 @@ func TestGateNOT(t *testing.T) {
 
 	for _, trial := range trials {
 		t.Run(fmt.Sprintf("NOT-%t", trial.input0), func(t *testing.T) {
-			inputs := []bool{trial.input0}
-			extractedLabels := make([]uint128.Uint128, numInputs)
+			inputBits := []bool{trial.input0}
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
-			outputs := make([]bool, numOutputs)
+			outputBits := make([]bool, numOutputs)
 
-			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
-			err = gc.Eval(extractedLabels, computedOutputLabels, outputs)
+			extractedLabels := ExtractLabels(inputLabels, inputBits)
+			err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
 			if err != nil {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			if outputs[0] != trial.expected {
-				t.Errorf("expected output of %t, but got %t", trial.expected, outputs[0])
+			if outputBits[0] != trial.expected {
+				t.Errorf("expected output of %t, but got %t", trial.expected, outputBits[0])
 			}
 		})
 	}
@@ -311,23 +306,22 @@ func TestGateNOTMapOutputs(t *testing.T) {
 
 	for _, trial := range trials {
 		t.Run(fmt.Sprintf("NOT-%t", trial.input0), func(t *testing.T) {
-			inputs := []bool{trial.input0}
-			extractedLabels := make([]uint128.Uint128, numInputs)
+			inputBits := []bool{trial.input0}
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
 
-			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
+			extractedLabels := ExtractLabels(inputLabels, inputBits)
 			err = gc.Eval(extractedLabels, computedOutputLabels, nil)
 			if err != nil {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			outputs, err := MapOutputs(outputLabels, computedOutputLabels)
+			outputBits, err := MapOutputs(outputLabels, computedOutputLabels)
 			if err != nil {
 				t.Fatalf("MapOutputs failed: %v", err)
 			}
 
-			if outputs[0] != trial.expected {
-				t.Errorf("expected map output of %t, but got %t", trial.expected, outputs[0])
+			if outputBits[0] != trial.expected {
+				t.Errorf("expected map output of %t, but got %t", trial.expected, outputBits[0])
 			}
 		})
 	}
