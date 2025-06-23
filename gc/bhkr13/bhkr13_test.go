@@ -100,7 +100,6 @@ func TestGateANDMapOutputs(t *testing.T) {
 			inputs := []bool{trial.input0, trial.input1}
 			extractedLabels := make([]uint128.Uint128, numInputs)
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
-			outputs := make([]bool, numOutputs)
 
 			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
 			err = gc.Eval(extractedLabels, computedOutputLabels, nil)
@@ -108,7 +107,7 @@ func TestGateANDMapOutputs(t *testing.T) {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			err = MapOutputs(outputLabels, computedOutputLabels, outputs, numOutputs)
+			outputs, err := MapOutputs(outputLabels, computedOutputLabels)
 			if err != nil {
 				t.Fatalf("MapOutputs failed: %v", err)
 			}
@@ -211,7 +210,6 @@ func TestGateXORMapOutputs(t *testing.T) {
 			inputs := []bool{trial.input0, trial.input1}
 			extractedLabels := make([]uint128.Uint128, numInputs)
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
-			outputs := make([]bool, numOutputs)
 
 			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
 			err = gc.Eval(extractedLabels, computedOutputLabels, nil)
@@ -219,7 +217,7 @@ func TestGateXORMapOutputs(t *testing.T) {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			err = MapOutputs(outputLabels, computedOutputLabels, outputs, numOutputs)
+			outputs, err := MapOutputs(outputLabels, computedOutputLabels)
 			if err != nil {
 				t.Fatalf("MapOutputs failed: %v", err)
 			}
@@ -316,7 +314,6 @@ func TestGateNOTMapOutputs(t *testing.T) {
 			inputs := []bool{trial.input0}
 			extractedLabels := make([]uint128.Uint128, numInputs)
 			computedOutputLabels := make([]uint128.Uint128, numOutputs)
-			outputs := make([]bool, numOutputs)
 
 			ExtractLabels(extractedLabels, inputLabels, inputs, len(inputs))
 			err = gc.Eval(extractedLabels, computedOutputLabels, nil)
@@ -324,7 +321,7 @@ func TestGateNOTMapOutputs(t *testing.T) {
 				t.Fatalf("gc.Eval failed: %v", err)
 			}
 
-			err = MapOutputs(outputLabels, computedOutputLabels, outputs, numOutputs)
+			outputs, err := MapOutputs(outputLabels, computedOutputLabels)
 			if err != nil {
 				t.Fatalf("MapOutputs failed: %v", err)
 			}
