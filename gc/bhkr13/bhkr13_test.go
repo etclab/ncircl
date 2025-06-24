@@ -54,6 +54,15 @@ func andBits(bits []bool) bool {
 	return true
 }
 
+func orBits(bits []bool) bool {
+	for _, b := range bits {
+		if b == true {
+			return true
+		}
+	}
+	return false
+}
+
 func TestGateAND(t *testing.T) {
 	trials := []struct {
 		inputBits []bool
@@ -442,10 +451,78 @@ func TestCircuitAND(t *testing.T) {
 	}
 }
 
-func BenchmarkGarbleCircuitAND(b *testing.B) {
+func TestCircuitOR(t *testing.T) {
+	trials := []struct {
+		inputBits []bool
+		expected  bool
+	}{
+		{[]bool{false, false}, false},
+		{[]bool{false, true}, true},
+		{[]bool{true, false}, true},
+		{[]bool{true, true}, true},
+
+		// just a few examples, not exhaustive
+		{[]bool{false, false, false}, false},
+		{[]bool{false, true, false}, true},
+		{[]bool{true, true, false}, true},
+		{[]bool{true, true, true}, true},
+
+		// just a few examples, not exhaustive
+		{[]bool{false, false, false, false}, false},
+		{[]bool{false, true, false, false}, true},
+		{[]bool{false, false, false, true}, true},
+		{[]bool{true, true, true, true}, true},
+	}
 
 	numOutputs := 1
 
+	// XXX: CircuitOR only currentlyu works for GarbleTypeStandard
+	for _, garbleType := range []GarbleType{GarbleTypeStandard} {
+		for _, trial := range trials {
+			numInputs := len(trial.inputBits)
+			inputLabels := make([]uint128.Uint128, 2*numInputs)
+			outputLabels := make([]uint128.Uint128, 2*numOutputs)
+			gc := NewGarbledCircuit(numInputs, numOutputs, garbleType, nil)
+			gc.StartBuilding()
+
+			inputWires := make([]int, numInputs)
+			for i := 0; i < len(inputWires); i++ {
+				inputWires[i] = i
+			}
+			outputWires := make([]int, numOutputs)
+
+			gc.CircuitOR(inputWires, outputWires)
+			gc.FinishBuilding(outputWires)
+
+			err := gc.Garble(nil, outputLabels)
+			if err != nil {
+				t.Fatalf("gc.Garble failed: %v", err)
+			}
+			for i := 0; i < numInputs; i++ {
+				inputLabels[2*i] = gc.Wires[2*i]
+				inputLabels[2*i+1] = gc.Wires[2*i+1]
+			}
+
+			t.Run(fmt.Sprintf("%v/%s", garbleType, subtestName(trial.inputBits)), func(t *testing.T) {
+				computedOutputLabels := make([]uint128.Uint128, numOutputs)
+				outputBits := make([]bool, numOutputs)
+
+				extractedLabels := ExtractLabels(inputLabels, trial.inputBits)
+				err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
+				if err != nil {
+					t.Fatalf("gc.Eval failed: %v", err)
+				}
+
+				if outputBits[0] != trial.expected {
+					t.Errorf("expected output of %t, but got %t", trial.expected, outputBits[0])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkGarbleCircuitAND(b *testing.B) {
+	numOutputs := 1
 	for _, garbleType := range garbleTypes {
 		for numInputs := 2; numInputs < 32; numInputs++ {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
@@ -500,6 +577,93 @@ func BenchmarkEvalCircuitAND(b *testing.B) {
 				outputWires := make([]int, numOutputs)
 
 				gc.CircuitAND(inputWires, outputWires)
+				gc.FinishBuilding(outputWires)
+
+				err := gc.Garble(nil, outputLabels)
+				if err != nil {
+					b.Fatalf("gc.Garble failed: %v", err)
+				}
+				for i := 0; i < numInputs; i++ {
+					inputLabels[2*i] = gc.Wires[2*i]
+					inputLabels[2*i+1] = gc.Wires[2*i+1]
+				}
+
+				computedOutputLabels := make([]uint128.Uint128, numOutputs)
+				outputBits := make([]bool, numOutputs)
+				extractedLabels := ExtractLabels(inputLabels, inputBits)
+
+				for b.Loop() {
+					err = gc.Eval(extractedLabels, computedOutputLabels, outputBits)
+					if err != nil {
+						b.Fatalf("gc.Eval failed: %v", err)
+					}
+					if outputBits[0] != expected {
+						b.Fatalf("expected output of %t, but got %t", expected, outputBits[0])
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkGarbleCircuitOR(b *testing.B) {
+	numOutputs := 1
+	// XXX: CircuitOR only currentlyu works for GarbleTypeStandard
+	for _, garbleType := range []GarbleType{GarbleTypeStandard} {
+		for numInputs := 2; numInputs < 32; numInputs++ {
+			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
+				inputLabels := make([]uint128.Uint128, 2*numInputs)
+				outputLabels := make([]uint128.Uint128, 2*numOutputs)
+				gc := NewGarbledCircuit(numInputs, numOutputs, garbleType, nil)
+				gc.StartBuilding()
+
+				inputWires := make([]int, numInputs)
+				for i := 0; i < len(inputWires); i++ {
+					inputWires[i] = i
+				}
+				outputWires := make([]int, numOutputs)
+
+				gc.CircuitOR(inputWires, outputWires)
+				gc.FinishBuilding(outputWires)
+
+				for b.Loop() {
+					err := gc.Garble(nil, outputLabels)
+					if err != nil {
+						b.Fatalf("gc.Garble failed: %v", err)
+					}
+					for i := 0; i < numInputs; i++ {
+						inputLabels[2*i] = gc.Wires[2*i]
+						inputLabels[2*i+1] = gc.Wires[2*i+1]
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEvalCircuitOR(b *testing.B) {
+
+	numOutputs := 1
+
+	// XXX: CircuitOR only currentlyu works for GarbleTypeStandard
+	for _, garbleType := range []GarbleType{GarbleTypeStandard} {
+		for numInputs := 2; numInputs < 32; numInputs++ {
+			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
+				inputBits := randomInputBits(numInputs)
+				expected := orBits(inputBits)
+
+				inputLabels := make([]uint128.Uint128, 2*numInputs)
+				outputLabels := make([]uint128.Uint128, 2*numOutputs)
+				gc := NewGarbledCircuit(numInputs, numOutputs, garbleType, nil)
+				gc.StartBuilding()
+
+				inputWires := make([]int, numInputs)
+				for i := 0; i < len(inputWires); i++ {
+					inputWires[i] = i
+				}
+				outputWires := make([]int, numOutputs)
+
+				gc.CircuitOR(inputWires, outputWires)
 				gc.FinishBuilding(outputWires)
 
 				err := gc.Garble(nil, outputLabels)

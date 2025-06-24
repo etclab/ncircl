@@ -51,7 +51,6 @@ const (
 	GarbleGateTypeZERO
 	GarbleGateTypeONE
 	GarbleGateTypeAND
-	GarbleGateTypeOR
 	GarbleGateTypeXOR
 	GarbleGateTypeNOT
 )
@@ -182,11 +181,6 @@ func (gc *GarbledCircuit) GateXOR(input0, input1, output int) {
 	gc.gate(input0, input1, output, GarbleGateTypeXOR)
 }
 
-// src/circuit_builder.c::gate_OR
-func (gc *GarbledCircuit) GateOR(input0, input1, output int) {
-	gc.gate(input0, input1, output, GarbleGateTypeOR)
-}
-
 // src/circuit_builder.c::gate_NOT
 func (gc *GarbledCircuit) GateNOT(input0, output int) {
 	gc.gate(input0, input0, output, GarbleGateTypeNOT)
@@ -210,21 +204,44 @@ func (gc *GarbledCircuit) CircuitAND(inputs, outputs []int) {
 
 	outputs[0] = gc.NextWire()
 	gc.GateAND(inputs[0], inputs[1], outputs[0])
-	if len(inputs) > 2 {
-		for i := 2; i < len(inputs); i++ {
-			wire := gc.NextWire()
-			gc.GateAND(inputs[i], outputs[0], wire)
-			outputs[0] = wire
-		}
+	for i := 2; i < len(inputs); i++ {
+		wire := gc.NextWire()
+		gc.GateAND(inputs[i], outputs[0], wire)
+		outputs[0] = wire
+	}
+}
+
+// src/circuit_builder.c::circuit_or
+func (gc *GarbledCircuit) CircuitOR(inputs, outputs []int) {
+	if gc.Type != GarbleTypeStandard {
+		mu.BUG("CircuitOR is currently only supported for GarbleTypeStandard")
+	}
+	if len(inputs) < 2 {
+		mu.BUG("inputs must have len >= 2; got %d", len(inputs))
+	}
+
+	a := gc.NextWire()
+	gc.GateNOT(inputs[0], a)
+	b := gc.NextWire()
+	gc.GateNOT(inputs[1], b)
+	c := gc.NextWire()
+	gc.GateAND(a, b, c)
+	outputs[0] = gc.NextWire()
+	gc.GateNOT(c, outputs[0])
+	for i := 2; i < len(inputs); i++ {
+		a = gc.NextWire()
+		gc.GateNOT(outputs[0], a)
+		b = gc.NextWire()
+		gc.GateNOT(inputs[i], b)
+		c = gc.NextWire()
+		gc.GateAND(a, b, c)
+		outputs[0] = gc.NextWire()
+		gc.GateNOT(c, outputs[0])
 	}
 }
 
 // src/garble/block.h::garble_double
 func garbleDouble(x uint128.Uint128) uint128.Uint128 {
-	return uint128.SllEpi64(x, 1)
-}
-
-func GarbleDouble(x uint128.Uint128) uint128.Uint128 {
 	return uint128.SllEpi64(x, 1)
 }
 

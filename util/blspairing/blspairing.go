@@ -14,6 +14,12 @@ const (
 	Aes256KeySize = 32
 )
 
+func NewScalarOne() *bls.Scalar {
+	z := new(bls.Scalar)
+	z.SetOne()
+	return z
+}
+
 func NewRandomScalar() *bls.Scalar {
 	z := new(bls.Scalar)
 	z.Random(rand.Reader)
