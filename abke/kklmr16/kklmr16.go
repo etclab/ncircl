@@ -127,30 +127,30 @@ func (m *MasterKey) MPK() *MPK {
 }
 
 type PublicKey struct {
-	g     *bls.G1
-	h     *bls.G1
-	u     *bls.G1
-	gsig  *bls.G1
-	hsig  *bls.G1
-	usig  *bls.G1
-	es    []*bls.G1
-	esigs []*bls.G1
+	G     *bls.G1
+	H     *bls.G1
+	U     *bls.G1
+	GSig  *bls.G1
+	HSig  *bls.G1
+	USig  *bls.G1
+	Es    []*bls.G1
+	ESigs []*bls.G1
 }
 
 func NewPublicKey(pp *PublicParams) *PublicKey {
 	pk := new(PublicKey)
-	pk.es = make([]*bls.G1, pp.NumAttrs)
-	pk.esigs = make([]*bls.G1, pp.NumAttrs)
+	pk.Es = make([]*bls.G1, pp.NumAttrs)
+	pk.ESigs = make([]*bls.G1, pp.NumAttrs)
 	return pk
 }
 
 func (pk *PublicKey) String() string {
 	sb := new(strings.Builder)
-	fmt.Fprintf(sb, "g: %v,\ngsig: %v,\n", pk.g, pk.gsig)
-	fmt.Fprintf(sb, "h: %v,\nhsig: %v,\n", pk.h, pk.hsig)
-	fmt.Fprintf(sb, "u: %v,\nusig: %v,\n", pk.u, pk.usig)
-	for i, e := range pk.es {
-		fmt.Fprintf(sb, "e[%d]: %v,\nesig[%d]: %v,\n", i, e, i, pk.esigs[i])
+	fmt.Fprintf(sb, "G: %v,\nGSig: %v,\n", pk.G, pk.GSig)
+	fmt.Fprintf(sb, "H: %v,\nHSig: %v,\n", pk.H, pk.HSig)
+	fmt.Fprintf(sb, "U: %v,\nUSig: %v,\n", pk.U, pk.USig)
+	for i, e := range pk.Es {
+		fmt.Fprintf(sb, "E[%d]: %v,\nESig[%d]: %v,\n", i, e, i, pk.ESigs[i])
 	}
 	return sb.String()
 }
@@ -158,32 +158,32 @@ func (pk *PublicKey) String() string {
 // Vrfy, ase_homosig_vrfy
 func (pk *PublicKey) Verify(pp *PublicParams, mpk *MPK) bool {
 	// g ∈ G\{1}
-	if !pk.g.IsOnG1() || pk.g.IsIdentity() {
+	if !pk.G.IsOnG1() || pk.G.IsIdentity() {
 		return false
 	}
 	// h ∈ G\{1}
-	if !pk.h.IsOnG1() || pk.h.IsIdentity() {
+	if !pk.H.IsOnG1() || pk.H.IsIdentity() {
 		return false
 	}
 	// u ∈ G\{1}
-	if !pk.u.IsOnG1() || pk.u.IsIdentity() {
+	if !pk.U.IsOnG1() || pk.U.IsIdentity() {
 		return false
 	}
 
-	if !ElhVerify(mpk.G, pk.gsig, pk.g) {
+	if !ElhVerify(mpk.G, pk.GSig, pk.G) {
 		return false
 	}
-	if !ElhVerify(mpk.H, pk.hsig, pk.h) {
+	if !ElhVerify(mpk.H, pk.HSig, pk.H) {
 		return false
 	}
-	if !ElhVerify(mpk.U, pk.usig, pk.u) {
+	if !ElhVerify(mpk.U, pk.USig, pk.U) {
 		return false
 	}
 
 	tmp := new(bls.G1)
 	for i := 0; i < pp.NumAttrs; i++ {
-		tmp.Add(pk.u, pk.es[i])
-		if !ElhVerify(mpk.Js[i], pk.esigs[i], tmp) {
+		tmp.Add(pk.U, pk.Es[i])
+		if !ElhVerify(mpk.Js[i], pk.ESigs[i], tmp) {
 			return false
 		}
 	}
@@ -222,26 +222,26 @@ func Unlink(pp *PublicParams, pk *PublicKey, sk *PrivateKey) (*PublicKey, *Priva
 
 	r := blspairing.NewRandomScalar()
 
-	newPk.g = new(bls.G1)
-	newPk.g.ScalarMult(r, pk.g)
-	newPk.gsig = new(bls.G1)
-	newPk.gsig.ScalarMult(r, pk.gsig)
+	newPk.G = new(bls.G1)
+	newPk.G.ScalarMult(r, pk.G)
+	newPk.GSig = new(bls.G1)
+	newPk.GSig.ScalarMult(r, pk.GSig)
 
-	newPk.h = new(bls.G1)
-	newPk.h.ScalarMult(r, pk.h)
-	newPk.hsig = new(bls.G1)
-	newPk.hsig.ScalarMult(r, pk.hsig)
+	newPk.H = new(bls.G1)
+	newPk.H.ScalarMult(r, pk.H)
+	newPk.HSig = new(bls.G1)
+	newPk.HSig.ScalarMult(r, pk.HSig)
 
-	newPk.u = new(bls.G1)
-	newPk.u.ScalarMult(r, pk.u)
-	newPk.usig = new(bls.G1)
-	newPk.usig.ScalarMult(r, pk.usig)
+	newPk.U = new(bls.G1)
+	newPk.U.ScalarMult(r, pk.U)
+	newPk.USig = new(bls.G1)
+	newPk.USig.ScalarMult(r, pk.USig)
 
-	for i := 0; i < len(pk.es); i++ {
-		newPk.es[i] = new(bls.G1)
-		newPk.es[i].ScalarMult(r, pk.es[i])
-		newPk.esigs[i] = new(bls.G1)
-		newPk.esigs[i].ScalarMult(r, pk.esigs[i])
+	for i := 0; i < len(pk.Es); i++ {
+		newPk.Es[i] = new(bls.G1)
+		newPk.Es[i].ScalarMult(r, pk.Es[i])
+		newPk.ESigs[i] = new(bls.G1)
+		newPk.ESigs[i].ScalarMult(r, pk.ESigs[i])
 		newSk.Rs[i] = blspairing.CloneScalar(sk.Rs[i])
 	}
 
@@ -249,63 +249,63 @@ func Unlink(pp *PublicParams, pk *PublicKey, sk *PrivateKey) (*PublicKey, *Priva
 }
 
 type CertificateAuthority struct {
-	pp *PublicParams
-	mk *MasterKey
+	PP *PublicParams
+	MK *MasterKey
 }
 
 // Setup
 func NewCertificateAuthority(pp *PublicParams) *CertificateAuthority {
 	ca := new(CertificateAuthority)
-	ca.pp = pp
-	ca.mk = NewMasterKey(pp)
+	ca.PP = pp
+	ca.MK = NewMasterKey(pp)
 	return ca
 }
 
 func (ca *CertificateAuthority) MPK() *MPK {
-	return ca.mk.MPK()
+	return ca.MK.MPK()
 }
 
 // GenCert,  ase_homosig_gen()
 func (ca *CertificateAuthority) GenCert(attrs []bool) (*PublicKey, *PrivateKey) {
-	pk := NewPublicKey(ca.pp)
-	sk := NewPrivateKey(ca.pp, attrs)
+	pk := NewPublicKey(ca.PP)
+	sk := NewPrivateKey(ca.PP, attrs)
 
-	pk.g = blspairing.NewRandomG1()
-	pk.h = blspairing.NewRandomG1()
-	pk.u = blspairing.NewRandomG1()
+	pk.G = blspairing.NewRandomG1()
+	pk.H = blspairing.NewRandomG1()
+	pk.U = blspairing.NewRandomG1()
 
-	pk.gsig = ca.mk.GKeyPair.Sign(pk.g)
-	pk.hsig = ca.mk.HKeyPair.Sign(pk.h)
-	pk.usig = ca.mk.UKeyPair.Sign(pk.u)
+	pk.GSig = ca.MK.GKeyPair.Sign(pk.G)
+	pk.HSig = ca.MK.HKeyPair.Sign(pk.H)
+	pk.USig = ca.MK.UKeyPair.Sign(pk.U)
 
 	tmp := new(bls.G1)
-	for i := 0; i < ca.pp.NumAttrs; i++ {
+	for i := 0; i < ca.PP.NumAttrs; i++ {
 		sk.Rs[i] = blspairing.NewRandomScalar()
-		pk.es[i] = new(bls.G1)
+		pk.Es[i] = new(bls.G1)
 		if attrs[i] {
-			pk.es[i].ScalarMult(sk.Rs[i], pk.h)
+			pk.Es[i].ScalarMult(sk.Rs[i], pk.H)
 		} else {
-			pk.es[i].ScalarMult(sk.Rs[i], pk.g)
+			pk.Es[i].ScalarMult(sk.Rs[i], pk.G)
 		}
 
-		tmp.Add(pk.es[i], pk.u)
-		pk.esigs[i] = ca.mk.JKeyPairs[i].Sign(tmp)
+		tmp.Add(pk.Es[i], pk.U)
+		pk.ESigs[i] = ca.MK.JKeyPairs[i].Sign(tmp)
 	}
 
 	return pk, sk
 }
 
 type Ciphertext struct {
-	g   *bls.G1
-	h   *bls.G1
-	c2s []*bls.G1
+	G   *bls.G1
+	H   *bls.G1
+	C2s []*bls.G1
 }
 
 func (ct *Ciphertext) String() string {
 	sb := new(strings.Builder)
 
-	fmt.Fprintf(sb, "{g: %v,\nh: %v,\nc2s: [\n", ct.g, ct.h)
-	for i, c2 := range ct.c2s {
+	fmt.Fprintf(sb, "{g: %v,\nh: %v,\nc2s: [\n", ct.G, ct.H)
+	for i, c2 := range ct.C2s {
 		fmt.Fprintf(sb, "\t[%d] %v,\n", i, c2)
 	}
 	fmt.Fprintf(sb, "}")
@@ -320,28 +320,28 @@ func Encrypt(pp *PublicParams, pk *PublicKey, attrs []bool, plaintext []*bls.G1)
 	ct := new(Ciphertext)
 
 	s := blspairing.NewRandomScalar()
-	ct.g = new(bls.G1)
-	ct.g.ScalarMult(s, pk.g)
+	ct.G = new(bls.G1)
+	ct.G.ScalarMult(s, pk.G)
 
 	t := blspairing.NewRandomScalar()
-	ct.h = new(bls.G1)
-	ct.h.ScalarMult(t, pk.h)
+	ct.H = new(bls.G1)
+	ct.H.ScalarMult(t, pk.H)
 
 	idx := 0
 	tmp := new(bls.G1)
-	ct.c2s = make([]*bls.G1, 2*pp.NumAttrs)
+	ct.C2s = make([]*bls.G1, 2*pp.NumAttrs)
 	for i := 0; i < pp.NumAttrs; i++ {
 		if attrs == nil || !attrs[i] {
 			idx = 2 * i
-			tmp.ScalarMult(s, pk.es[i])
-			ct.c2s[idx] = new(bls.G1)
-			ct.c2s[idx].Add(plaintext[idx], tmp)
+			tmp.ScalarMult(s, pk.Es[i])
+			ct.C2s[idx] = new(bls.G1)
+			ct.C2s[idx].Add(plaintext[idx], tmp)
 		}
 		if attrs == nil || attrs[i] {
 			idx = 2*i + 1
-			tmp.ScalarMult(t, pk.es[i])
-			ct.c2s[idx] = new(bls.G1)
-			ct.c2s[idx].Add(plaintext[idx], tmp)
+			tmp.ScalarMult(t, pk.Es[i])
+			ct.C2s[idx] = new(bls.G1)
+			ct.C2s[idx].Add(plaintext[idx], tmp)
 		}
 	}
 
@@ -356,13 +356,13 @@ func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) []*bls.G1 {
 	for i := 0; i < pp.NumAttrs; i++ {
 		pt[i] = new(bls.G1)
 		if sk.Attrs[i] {
-			tmp.ScalarMult(sk.Rs[i], ct.h)
+			tmp.ScalarMult(sk.Rs[i], ct.H)
 			tmp.Neg()
-			pt[i].Add(ct.c2s[2*i+1], tmp)
+			pt[i].Add(ct.C2s[2*i+1], tmp)
 		} else {
-			tmp.ScalarMult(sk.Rs[i], ct.g)
+			tmp.ScalarMult(sk.Rs[i], ct.G)
 			tmp.Neg()
-			pt[i].Add(ct.c2s[2*i], tmp)
+			pt[i].Add(ct.C2s[2*i], tmp)
 		}
 	}
 
