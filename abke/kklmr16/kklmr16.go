@@ -1,12 +1,16 @@
 package kklmr16
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"strings"
 
 	bls "github.com/cloudflare/circl/ecc/bls12381"
 	"github.com/etclab/mu"
 	"github.com/etclab/ncircl/util/blspairing"
+	"github.com/etclab/ncircl/util/uint128"
 )
 
 type PublicParams struct {
@@ -188,12 +192,18 @@ func (pk *PublicKey) Verify(pp *PublicParams, mpk *MPK) bool {
 }
 
 type PrivateKey struct {
-	Rs []*bls.Scalar
+	Rs    []*bls.Scalar
+	Attrs []bool
 }
 
-func NewPrivateKey(pp *PublicParams) *PrivateKey {
+func NewPrivateKey(pp *PublicParams, attrs []bool) *PrivateKey {
+	if len(attrs) != pp.NumAttrs {
+		mu.BUG("bad attrs length: pp.NumAttrs=%d, len(attrs)=%d", pp.NumAttrs, len(attrs))
+	}
 	sk := new(PrivateKey)
 	sk.Rs = make([]*bls.Scalar, pp.NumAttrs)
+	sk.Attrs = make([]bool, pp.NumAttrs)
+	copy(sk.Attrs, attrs)
 	return sk
 }
 
@@ -208,7 +218,7 @@ func (sk *PrivateKey) String() string {
 // Unlink, ase_homosig_unlink
 func Unlink(pp *PublicParams, pk *PublicKey, sk *PrivateKey) (*PublicKey, *PrivateKey) {
 	newPk := NewPublicKey(pp)
-	newSk := NewPrivateKey(pp)
+	newSk := NewPrivateKey(pp, sk.Attrs)
 
 	r := blspairing.NewRandomScalar()
 
@@ -258,7 +268,7 @@ func (ca *CertificateAuthority) MPK() *MPK {
 // GenCert,  ase_homosig_gen()
 func (ca *CertificateAuthority) GenCert(attrs []bool) (*PublicKey, *PrivateKey) {
 	pk := NewPublicKey(ca.pp)
-	sk := NewPrivateKey(ca.pp)
+	sk := NewPrivateKey(ca.pp, attrs)
 
 	pk.g = blspairing.NewRandomG1()
 	pk.h = blspairing.NewRandomG1()
@@ -305,6 +315,7 @@ func (ct *Ciphertext) String() string {
 
 // Enc, ase_homosig_enc
 // Note that len(plaintext) = 2 * numAttrs
+// the caller usually passes nil for attrs
 func Encrypt(pp *PublicParams, pk *PublicKey, attrs []bool, plaintext []*bls.G1) *Ciphertext {
 	ct := new(Ciphertext)
 
@@ -320,28 +331,31 @@ func Encrypt(pp *PublicParams, pk *PublicKey, attrs []bool, plaintext []*bls.G1)
 	tmp := new(bls.G1)
 	ct.c2s = make([]*bls.G1, 2*pp.NumAttrs)
 	for i := 0; i < pp.NumAttrs; i++ {
-		if attrs[i] {
-			idx = 2*i + 1
-			tmp.ScalarMult(t, pk.es[i])
-		} else {
+		if attrs == nil || !attrs[i] {
 			idx = 2 * i
 			tmp.ScalarMult(s, pk.es[i])
+			ct.c2s[idx] = new(bls.G1)
+			ct.c2s[idx].Add(plaintext[idx], tmp)
 		}
-		ct.c2s[idx] = new(bls.G1)
-		ct.c2s[idx].Add(plaintext[idx], tmp)
+		if attrs == nil || attrs[i] {
+			idx = 2*i + 1
+			tmp.ScalarMult(t, pk.es[i])
+			ct.c2s[idx] = new(bls.G1)
+			ct.c2s[idx].Add(plaintext[idx], tmp)
+		}
 	}
 
 	return ct
 }
 
 // Dec, ase_homosig_dec
-func Decrypt(pp *PublicParams, sk *PrivateKey, attrs []bool, ct *Ciphertext) []*bls.G1 {
+func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) []*bls.G1 {
 	tmp := new(bls.G1)
 
 	pt := make([]*bls.G1, pp.NumAttrs)
 	for i := 0; i < pp.NumAttrs; i++ {
 		pt[i] = new(bls.G1)
-		if attrs[i] {
+		if sk.Attrs[i] {
 			tmp.ScalarMult(sk.Rs[i], ct.h)
 			tmp.Neg()
 			pt[i].Add(ct.c2s[2*i+1], tmp)
@@ -353,4 +367,18 @@ func Decrypt(pp *PublicParams, sk *PrivateKey, attrs []bool, ct *Ciphertext) []*
 	}
 
 	return pt
+}
+
+// util.c::hash
+func Hash(g *bls.G1, idx int, bit bool) uint128.Uint128 {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, uint32(idx))
+	binary.Write(buf, binary.BigEndian, uint8(mu.BoolToInt(bit)))
+	buf.Write(g.Bytes())
+
+	h := sha256.Sum256(buf.Bytes())
+
+	var block uint128.Uint128
+	block.SetBytes(h[:16])
+	return block
 }

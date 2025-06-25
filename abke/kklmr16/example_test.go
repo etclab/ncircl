@@ -21,8 +21,9 @@ func Example() {
 		pt[i] = blspairing.NewRandomG1()
 	}
 
-	ct := kklmr16.Encrypt(pp, pk, attrs, pt)
-	got := kklmr16.Decrypt(pp, sk, attrs, ct)
+	ct := kklmr16.Encrypt(pp, pk, nil, pt)
+
+	got := kklmr16.Decrypt(pp, sk, ct)
 
 	fmt.Printf("%v %v %v %v\n",
 		got[0].IsEqual(pt[1]),
