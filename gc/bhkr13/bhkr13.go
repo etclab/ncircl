@@ -48,8 +48,6 @@ type GarbleGateType int
 // src/garble.h::garble_gate_type_e enum
 const (
 	GarbleGateTypeEMPTY GarbleGateType = iota
-	GarbleGateTypeZERO
-	GarbleGateTypeONE
 	GarbleGateTypeAND
 	GarbleGateTypeXOR
 	GarbleGateTypeNOT
