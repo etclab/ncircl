@@ -1,6 +1,8 @@
 package kklmr16_test
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"log"
 
@@ -48,6 +50,17 @@ func buildANDPolicy(gc *bhkr13.GarbledCircuit, numInputs int) {
 	gc.StartBuilding()
 	gc.CircuitAND(inputWires, outputWires)
 	gc.FinishBuilding(outputWires)
+}
+
+func commit(label, decom uint128.Uint128) uint128.Uint128 {
+	var buf bytes.Buffer
+	buf.Write(label.Bytes())
+	buf.Write(decom.Bytes())
+	h := sha256.Sum256(buf.Bytes())
+
+	var commitment uint128.Uint128
+	commitment.SetBytes(h[:16])
+	return commitment
 }
 
 // Example_KeyExchange demonstrates how abke can be combined with garbled circuits
@@ -105,10 +118,7 @@ func Example_simulateKeyExchange() {
 	// server encrypts the ASE plaintext to the client's public key;
 	ct := kklmr16.Encrypt(pp, alicePK, nil, asePTs)
 
-	// TODO: server creates commitment
-
-	// the server would then send the ciphertext ct and commmitment comm to the
-	// client
+	// NET: server sends the ciphertext ct, garbled circuit, and tt to the client
 
 	// client decrypts the ciphertext; the resultant "plaintext" is the
 	// AES-encrypted input labels
@@ -128,4 +138,41 @@ func Example_simulateKeyExchange() {
 		aliceInputLabels[i] = decryptedInputLabel
 	}
 
+	// client evaluates the garbled circuit with the labels it extracted
+	// for its attributes
+	computedOutputLabels := make([]uint128.Uint128, 1)
+	err = gc.Eval(aliceInputLabels, computedOutputLabels, nil)
+	if err != nil {
+		log.Fatalf("gc.Eval failed: %v", err)
+	}
+
+	// The client commits to its computed output label
+	decom := uint128.Random()
+	commitment := commit(computedOutputLabels[0], decom)
+
+	// NET: client sends the commitment to the server
+
+	// TODO: client: _check
+	// TODO: server _send_randomness_and_inputs
+
+	// NET: client sends the output label and decommitment  to the server
+
+	// server verifies that the output label and decommitment equal the
+	// client's original commitment; if not abort connection
+	commitment1 := commit(computedOutputLabels[0], decom)
+	if commitment1 != commitment {
+		log.Fatalf("invalid client commitment")
+	}
+
+	// server checks if the client's output label corresponds to
+	// the 1-bit output label; if not, abort connection
+	if computedOutputLabels[0] != outputLabels[1] {
+		log.Fatalf("client's output label does not correspond to the 1-bit")
+	}
+	// TODO: the client and server then do a coin tossing protocol (this might
+	// be optional, based on the setting)
+
+	fmt.Println("authenticated")
+	// Output:
+	// authenticated
 }
