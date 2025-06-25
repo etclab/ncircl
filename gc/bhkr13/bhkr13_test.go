@@ -1,12 +1,11 @@
 package bhkr13
 
 import (
-	"crypto/rand"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/etclab/mu"
+	"github.com/etclab/ncircl/util/boolx"
 	"github.com/etclab/ncircl/util/uint128"
 )
 
@@ -23,26 +22,6 @@ func subtestName(inputBits []bool) string {
 	}
 
 	return strings.Join(strs, "")
-}
-
-func randomInputBits(n int) []bool {
-	inputBits := make([]bool, n)
-	var b [1]byte
-
-	for i := 0; i < n; i++ {
-		// get a random byte
-		_, err := rand.Read(b[:])
-		if err != nil {
-			mu.Panicf("rand.Read failed: %v", err)
-		}
-
-		// extract lowest bit
-		bit := b[0] & 1
-
-		inputBits[i] = mu.IntToBool(int(bit))
-	}
-
-	return inputBits
 }
 
 func andBits(bits []bool) bool {
@@ -562,7 +541,7 @@ func BenchmarkEvalCircuitAND(b *testing.B) {
 	for _, garbleType := range garbleTypes {
 		for numInputs := 2; numInputs < 32; numInputs++ {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
-				inputBits := randomInputBits(numInputs)
+				inputBits := boolx.Random(numInputs)
 				expected := andBits(inputBits)
 
 				inputLabels := make([]uint128.Uint128, 2*numInputs)
@@ -649,7 +628,7 @@ func BenchmarkEvalCircuitOR(b *testing.B) {
 	for _, garbleType := range []GarbleType{GarbleTypeStandard} {
 		for numInputs := 2; numInputs < 32; numInputs++ {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
-				inputBits := randomInputBits(numInputs)
+				inputBits := boolx.Random(numInputs)
 				expected := orBits(inputBits)
 
 				inputLabels := make([]uint128.Uint128, 2*numInputs)
