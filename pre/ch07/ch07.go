@@ -160,13 +160,12 @@ func Encrypt(pp *PublicParams, pk *PublicKey, msg *bls.Gt) *Ciphertext {
 	return ct
 }
 
-func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, bobPK *PublicKey, ct *Ciphertext) (*Ciphertext, error) {
-	ctNew := ct.Clone()
-	ctNew.B.ScalarMult(rk.RK, ct.B)
-	if err := ctNew.Check(pp, bobPK); err != nil {
-		return nil, err
+func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, bobPK *PublicKey, ct *Ciphertext) error {
+	ct.B.ScalarMult(rk.RK, ct.B)
+	if err := ct.Check(pp, bobPK); err != nil {
+		return err
 	}
-	return ctNew, nil
+	return nil
 }
 
 func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) (*bls.Gt, error) {

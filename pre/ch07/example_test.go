@@ -19,12 +19,12 @@ func Example() {
 	msg := blspairing.NewRandomGt()
 
 	ct := ch07.Encrypt(pp, alicePK, msg)
-	ctNew, err := ch07.ReEncrypt(pp, rkAliceToBob, bobPK, ct)
+	err := ch07.ReEncrypt(pp, rkAliceToBob, bobPK, ct)
 	if err != nil {
 		log.Fatalf("ReEncrypt failed: %v", err)
 	}
 
-	got, err := ch07.Decrypt(pp, bobSK, ctNew)
+	got, err := ch07.Decrypt(pp, bobSK, ct)
 	if err != nil {
 		log.Fatalf("Encrypt failed: %v", err)
 	}

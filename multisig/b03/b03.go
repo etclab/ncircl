@@ -46,6 +46,16 @@ func NewSignature() *Signature {
 	return sig
 }
 
+func (sig *Signature) Clone() *Signature {
+	newSig := new(Signature)
+	newSig.Sig = blspairing.CloneG1(sig.Sig)
+	return newSig
+}
+
+func (sig *Signature) Equal(other *Signature) bool {
+    return sig.Sig.IsEqual(other.Sig)
+}
+
 func Aggregate(_ *PublicParams, sigs []*Signature) *Signature {
 	muSig := NewSignature()
 
@@ -56,27 +66,15 @@ func Aggregate(_ *PublicParams, sigs []*Signature) *Signature {
 	return muSig
 }
 
-/*
-func SingleSign(_ *PublicParams, sk *PrivateKey, msg []byte) *Signature {
-	h := blspairing.HashBytesToG1(msg, nil)
-	s := NewSignature()
-	s.Sig.ScalarMult(sk.X, h)
-	return s
-}
-
-func Sign(pp *PublicParams, sk *PrivateKey, msg []byte, muSig *Signature) {
-	sig := SingleSign(pp, sk, msg)
-	muSig.Sig.Add(sig.Sig, muSig.Sig)
-}
-*/
-
 func Sign(pp *PublicParams, sk *PrivateKey, msg []byte, muSig *Signature) *Signature {
-	if muSig == nil {
-		muSig = NewSignature()
-	}
 	h := blspairing.HashBytesToG1(msg, nil)
 	s := NewSignature()
 	s.Sig.ScalarMult(sk.X, h)
+
+	if muSig == nil {
+		return s
+	}
+
 	muSig.Sig.Add(s.Sig, muSig.Sig)
 
 	return muSig

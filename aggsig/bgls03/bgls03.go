@@ -53,14 +53,15 @@ func NewSignature() *Signature {
 	return sig
 }
 
-/*
-func SingleSign(_ *PublicParams, sk *PrivateKey, msg []byte) *Signature {
-	h := blspairing.HashBytesToG1(msg, nil)
-	s := NewSignature()
-	s.Sig.ScalarMult(sk.X, h)
-	return s
+func (sig *Signature) Clone() *Signature {
+	newSig := new(Signature)
+	newSig.Sig = blspairing.CloneG1(sig.Sig)
+	return newSig
 }
-*/
+
+func (sig *Signature) Equal(other *Signature) bool {
+    return sig.Sig.IsEqual(other.Sig)
+}
 
 func Aggregate(_ *PublicParams, sigs []*Signature) *Signature {
 	aggSig := NewSignature()
@@ -73,23 +74,17 @@ func Aggregate(_ *PublicParams, sigs []*Signature) *Signature {
 }
 
 func Sign(_ *PublicParams, sk *PrivateKey, msg []byte, aggSig *Signature) *Signature {
-	if aggSig == nil {
-		aggSig = NewSignature()
-	}
-
 	h := blspairing.HashBytesToG1(msg, nil)
 	s := NewSignature()
 	s.Sig.ScalarMult(sk.X, h)
+
+	if aggSig == nil {
+		return s
+	}
+
 	aggSig.Sig.Add(s.Sig, aggSig.Sig)
 
 	return aggSig
-
-	/* ------------- */
-
-	/*
-		sig := SingleSign(pp, sk, msg)
-		aggSig.Sig.Add(sig.Sig, aggSig.Sig)
-	*/
 }
 
 func Verify(pp *PublicParams, pks []*PublicKey, msgs [][]byte, aggSig *Signature) error {

@@ -20,6 +20,23 @@ func TestSign(t *testing.T) {
 	}
 }
 
+func TestSignInitialSignaturee(t *testing.T) {
+	msg := []byte("The quick brown fox jumps over the lazy dog.")
+	pp := NewPublicParams()
+	alicePK, aliceSK := KeyGen(pp)
+
+    sigA := NewSignature()
+	sigB := Sign(pp, aliceSK, msg, sigA)
+    if sigA != sigB {
+        t.Fatal("Sign: return value is not the same address as the in-out signature parameter")
+    }
+
+	valid := Verify(pp, []*PublicKey{alicePK}, msg, sigA)
+	if !valid {
+		t.Fatal("expected Verify to return true; got false")
+	}
+}
+
 func TestMultiSign(t *testing.T) {
 	msg := []byte("The quick brown fox jumps over the lazy dog.")
 	pp := NewPublicParams()
@@ -60,6 +77,11 @@ func TestAggregate(t *testing.T) {
 	}
 }
 
+const (
+	benchmarkMsgSize       = 1024 // 1 KiB
+	benchmarkMaxSignatures = 1024 // 2^10
+)
+
 type user struct {
 	pk  *PublicKey
 	sk  *PrivateKey
@@ -73,20 +95,78 @@ func newUser(pp *PublicParams, msg []byte) *user {
 	return u
 }
 
+func BenchmarkKeyGen(b *testing.B) {
+	pp := NewPublicParams()
+	for b.Loop() {
+		_, _ = KeyGen(pp)
+	}
+}
+
+func BenchmarkSign(b *testing.B) {
+	msg := bytesx.Random(benchmarkMsgSize)
+	pp := NewPublicParams()
+
+	var muSigs []*Signature
+    muSig := NewSignature()
+	for n := 1; n <= benchmarkMaxSignatures; n++ {
+		_, sk := KeyGen(pp)
+        Sign(pp, sk, msg, muSig)
+		muSigs = append(muSigs, muSig.Clone())
+	}
+
+	b.Run("numPrevSigs:0", func(b *testing.B) {
+		_, sk := KeyGen(pp)
+		for b.Loop() {
+			_ = Sign(pp, sk, msg, nil)
+		}
+	})
+
+	for n := 1; n <= benchmarkMaxSignatures; n *= 2 {
+		b.Run(fmt.Sprintf("numPrevSigs:%d", n), func(b *testing.B) {
+			_, sk := KeyGen(pp)
+			for b.Loop() {
+                b.StopTimer()
+                muSig := muSigs[n-1].Clone()
+                b.StartTimer()
+				_ = Sign(pp, sk, msg, muSig)
+			}
+		})
+	}
+}
+
+func BenchmarkAggregate(b *testing.B) {
+	msg := bytesx.Random(benchmarkMsgSize)
+	pp := NewPublicParams()
+
+	var sigs []*Signature
+	for n := 1; n <= benchmarkMaxSignatures; n++ {
+		u := newUser(pp, msg)
+		sigs = append(sigs, u.sig)
+	}
+
+	for n := 1; n <= benchmarkMaxSignatures; n *= 2 {
+		b.Run(fmt.Sprintf("numSigs:%d", n), func(b *testing.B) {
+			for b.Loop() {
+				_ = Aggregate(pp, sigs[:n])
+			}
+		})
+	}
+}
+
 func BenchmarkVerify(b *testing.B) {
-	msg := bytesx.Random(64)
+	msg := bytesx.Random(benchmarkMsgSize)
 	pp := NewPublicParams()
 
 	var sigs []*Signature
 	var pks []*PublicKey
-	for n := 1; n < 10000; n++ {
+	for n := 1; n <= benchmarkMaxSignatures; n++ {
 		u := newUser(pp, msg)
 		sigs = append(sigs, u.sig)
 		pks = append(pks, u.pk)
 	}
 
-	for n := 1; n < 10000; n *= 2 {
-		b.Run(fmt.Sprintf("nsigs:%d", n), func(b *testing.B) {
+	for n := 1; n <= benchmarkMaxSignatures; n *= 2 {
+		b.Run(fmt.Sprintf("numSigs:%d", n), func(b *testing.B) {
 			muSig := Aggregate(pp, sigs[:n])
 			for b.Loop() {
 				valid := Verify(pp, pks[:n], msg, muSig)

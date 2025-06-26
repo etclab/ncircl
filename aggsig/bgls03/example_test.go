@@ -19,7 +19,7 @@ func ExampleSign() {
 	carolPK, carolSK := bgls03.KeyGen(pp)
 	pks := []*bgls03.PublicKey{alicePK, bobPK, carolPK}
 
-	aggSig := bgls03.NewSignature()
+    aggSig := bgls03.NewSignature()
 	bgls03.Sign(pp, aliceSK, aliceMsg, aggSig)
 	bgls03.Sign(pp, bobSK, bobMsg, aggSig)
 	bgls03.Sign(pp, carolSK, carolMsg, aggSig)

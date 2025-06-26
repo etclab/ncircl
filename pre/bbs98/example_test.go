@@ -19,14 +19,14 @@ func Example() {
 
 	msg := ecc.NewRandomPoint(pp.Curve)
 
-	ctAlice, err := bbs98.Encrypt(pp, alicePK, msg)
+	ct, err := bbs98.Encrypt(pp, alicePK, msg)
 	if err != nil {
 		log.Fatalf("Encrypt failed: %v\n", err)
 	}
 
-	ctBob := bbs98.ReEncrypt(pp, rkAliceToBob, ctAlice)
+	bbs98.ReEncrypt(pp, rkAliceToBob, ct)
 
-	got := bbs98.Decrypt(pp, bobSK, ctBob)
+	got := bbs98.Decrypt(pp, bobSK, ct)
 
 	fmt.Println(got.Equal(msg))
 	// Output:

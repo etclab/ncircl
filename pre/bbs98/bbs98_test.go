@@ -58,15 +58,14 @@ func TestEncryptReEncryptDecrypt(t *testing.T) {
 			_, bobSK := KeyGen(pp)
 
 			m := ecc.NewRandomPoint(trial.curve)
-			ctAlice, err := Encrypt(pp, alicePK, m)
+			ct, err := Encrypt(pp, alicePK, m)
 			if err != nil {
 				t.Fatalf("Encrypt failed: %v", err)
 			}
 
 			rkAliceToBob := ReEncryptionKeyGen(pp, aliceSK, bobSK)
-			ctBob := ReEncrypt(pp, rkAliceToBob, ctAlice)
-
-			got := Decrypt(pp, bobSK, ctBob)
+			ReEncrypt(pp, rkAliceToBob, ct)
+			got := Decrypt(pp, bobSK, ct)
 			if !m.Equal(got) {
 				t.Fatal("result of decryption does not equal original message")
 			}
@@ -165,14 +164,17 @@ func BenchmarkReEncrypt(b *testing.B) {
 			alicePK, aliceSK := KeyGen(pp)
 			_, bobSK := KeyGen(pp)
 			msg := ecc.NewRandomPoint(trial.curve)
-			ctAlice, err := Encrypt(pp, alicePK, msg)
+			ct, err := Encrypt(pp, alicePK, msg)
 			if err != nil {
 				b.Fatalf("Encrypt failed: %v", err)
 			}
 
 			rkAliceToBob := ReEncryptionKeyGen(pp, aliceSK, bobSK)
 			for b.Loop() {
-				_ = ReEncrypt(pp, rkAliceToBob, ctAlice)
+                b.StopTimer()
+                ctNew := ct.Clone()
+                b.StartTimer()
+				ReEncrypt(pp, rkAliceToBob, ctNew)
 			}
 		})
 	}

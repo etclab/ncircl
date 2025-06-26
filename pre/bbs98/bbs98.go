@@ -116,11 +116,9 @@ func Encrypt(pp *PublicParams, pk *PublicKey, msg *ecc.Point) (*Ciphertext, erro
 	return ct, nil
 }
 
-func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct *Ciphertext) *Ciphertext {
+func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct *Ciphertext) {
 	curve := pp.Curve
-	ctNew := ct.Clone()
-	ctNew.C2.X, ctNew.C2.Y = curve.ScalarMult(ct.C2.X, ct.C2.Y, rk.RK.Bytes())
-	return ctNew
+	ct.C2.X, ct.C2.Y = curve.ScalarMult(ct.C2.X, ct.C2.Y, rk.RK.Bytes())
 }
 
 func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) *ecc.Point {

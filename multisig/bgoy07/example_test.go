@@ -22,12 +22,12 @@ func Example() {
 		log.Fatalf("Alice sign failed: %v", err)
 	}
 
-	_, err = bgoy07.Sign(pp, bobSK, m, muSig, pubkeys[:1])
+	muSig, err = bgoy07.Sign(pp, bobSK, m, muSig, pubkeys[:1])
 	if err != nil {
 		log.Fatalf("Bob sign failed: %v", err)
 	}
 
-	_, err = bgoy07.Sign(pp, carolSK, m, muSig, pubkeys[:2])
+	muSig, err = bgoy07.Sign(pp, carolSK, m, muSig, pubkeys[:2])
 	if err != nil {
 		log.Fatalf("Carol sign failed: %v", err)
 	}

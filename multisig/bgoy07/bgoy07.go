@@ -87,12 +87,20 @@ func (s *Signature) Clone() *Signature {
 	return sig
 }
 
+func (s *Signature) Equal(other *Signature) bool {
+	return s.Q.IsEqual(other.Q) && s.X.IsEqual(other.X) && s.Y.IsEqual(other.Y) && s.R.IsEqual(other.R)
+}
+
+
 // Assume pks are the pubkeys of all the previous signers.
 // muSig is an input, output parameter.
 func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pks []*PublicKey) (*Signature, error) {
+	var ms *Signature
+
 	if muSig == nil {
-		muSig = NewSignature()
+		ms = NewSignature()
 	} else {
+        ms = muSig
 		err := Verify(pp, pks, m, muSig)
 		if err != nil {
 			return nil, err
@@ -103,7 +111,7 @@ func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pks []*P
 	r := blspairing.NewRandomScalar()
 	R := new(bls.G2)
 	R.ScalarMult(r, pp.G2)
-	muSig.R.Add(R, muSig.R)
+	ms.R.Add(R, ms.R)
 
 	// X' <- (R')^{t_i + iu_i} · X
 	index := len(pks) + 1 // 1-based indexing
@@ -112,8 +120,8 @@ func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pks []*P
 	exp.Mul(i, sk.U)
 	exp.Add(exp, sk.T)
 	X := new(bls.G2)
-	X.ScalarMult(exp, muSig.R)
-	muSig.X.Add(X, muSig.X)
+	X.ScalarMult(exp, ms.R)
+	ms.X.Add(X, ms.X)
 
 	// Y' <- (\prod_{j=1}^{i-1} T_j U_j^j)^r · Y'
 	Y := blspairing.NewG1Identity()
@@ -126,19 +134,18 @@ func Sign(pp *PublicParams, sk *PrivateKey, m []byte, muSig *Signature, pks []*P
 		Y.Add(Y, &UtoJ)
 	}
 	Y.ScalarMult(r, Y)
-	muSig.Y.Add(Y, muSig.Y)
+	ms.Y.Add(Y, ms.Y)
 
 	// Q' <- H(m)^{s_i} · Q
 	Q := blspairing.HashBytesToG1(m, nil)
 	Q.ScalarMult(sk.S, Q)
-	muSig.Q.Add(Q, muSig.Q)
+	ms.Q.Add(Q, ms.Q)
 
-	return muSig, nil
+	return ms, nil
 }
 
 func Verify(pp *PublicParams, pks []*PublicKey, m []byte, sig *Signature) error {
 	// Check that all public keys are distinct
-
 	seen := make(map[string]bool)
 	for _, pk := range pks {
 		var b []byte
