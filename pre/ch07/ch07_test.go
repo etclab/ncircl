@@ -78,9 +78,9 @@ func BenchmarkReEncrypt(b *testing.B) {
 	ct := Encrypt(pp, alicePK, msg)
 
 	for b.Loop() {
-        b.StopTimer()
-        ctNew := ct.Clone()
-        b.StartTimer()
+		b.StopTimer()
+		ctNew := ct.Clone()
+		b.StartTimer()
 		err := ReEncrypt(pp, rkAliceToBob, bobPK, ctNew)
 		if err != nil {
 			b.Fatalf("ReEncrypt failed: %v", err)

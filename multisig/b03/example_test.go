@@ -37,9 +37,14 @@ func ExampleAggregate() {
 	carolPK, carolSK := b03.KeyGen(pp)
 	pks := []*b03.PublicKey{alicePK, bobPK, carolPK}
 
-	aliceSig := b03.Sign(pp, aliceSK, msg, nil)
-	bobSig := b03.Sign(pp, bobSK, msg, nil)
-	carolSig := b03.Sign(pp, carolSK, msg, nil)
+	aliceSig := b03.NewSignature()
+	b03.Sign(pp, aliceSK, msg, aliceSig)
+
+	bobSig := b03.NewSignature()
+	b03.Sign(pp, bobSK, msg, bobSig)
+
+	carolSig := b03.NewSignature()
+	b03.Sign(pp, carolSK, msg, carolSig)
 
 	allSigs := []*b03.Signature{aliceSig, bobSig, carolSig}
 	muSig := b03.Aggregate(pp, allSigs)

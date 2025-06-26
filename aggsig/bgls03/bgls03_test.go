@@ -11,25 +11,9 @@ func TestSign(t *testing.T) {
 	m := []byte("The quick brown fox jumps over the lazy dog.")
 	pp := NewPublicParams()
 	pk, sk := KeyGen(pp)
-	sig := Sign(pp, sk, m, nil)
+	sig := NewSignature()
+	Sign(pp, sk, m, sig)
 	err := Verify(pp, []*PublicKey{pk}, [][]byte{m}, sig)
-	if err != nil {
-		t.Fatalf("expected Verify to return nil; go an error: %v", err)
-	}
-}
-
-func TestSignInitialSignature(t *testing.T) {
-	m := []byte("The quick brown fox jumps over the lazy dog.")
-	pp := NewPublicParams()
-	pk, sk := KeyGen(pp)
-    sigA := NewSignature()
-	sigB := Sign(pp, sk, m, sigA)
-
-    if sigA != sigB {
-        t.Fatal("Sign: return value is not the same address as the in-out signature parameter")
-    }
-
-	err := Verify(pp, []*PublicKey{pk}, [][]byte{m}, sigA)
 	if err != nil {
 		t.Fatalf("expected Verify to return nil; go an error: %v", err)
 	}
@@ -39,7 +23,8 @@ func TestVerifyInvalid(t *testing.T) {
 	m1 := []byte("The quick brown fox jumps over the lazy dog.")
 	pp := NewPublicParams()
 	pk, sk := KeyGen(pp)
-	sig := Sign(pp, sk, m1, nil)
+	sig := NewSignature()
+	Sign(pp, sk, m1, sig)
 
 	m2 := []byte("The quick brown fox jumps over the lazy cat.")
 	err := Verify(pp, []*PublicKey{pk}, [][]byte{m2}, sig)
@@ -85,9 +70,14 @@ func TestAggregate(t *testing.T) {
 	carolPK, carolSK := KeyGen(pp)
 	pks := []*PublicKey{alicePK, bobPK, carolPK}
 
-	aliceSig := Sign(pp, aliceSK, aliceMsg, nil)
-	bobSig := Sign(pp, bobSK, bobMsg, nil)
-	carolSig := Sign(pp, carolSK, carolMsg, nil)
+	aliceSig := NewSignature()
+	Sign(pp, aliceSK, aliceMsg, aliceSig)
+
+	bobSig := NewSignature()
+	Sign(pp, bobSK, bobMsg, bobSig)
+
+	carolSig := NewSignature()
+	Sign(pp, carolSK, carolMsg, carolSig)
 
 	sigs := []*Signature{aliceSig, bobSig, carolSig}
 	aggSig := Aggregate(pp, sigs)
@@ -111,9 +101,14 @@ func TestMessagesNotUnique(t *testing.T) {
 	carolPK, carolSK := KeyGen(pp)
 	pks := []*PublicKey{alicePK, bobPK, carolPK}
 
-	aliceSig := Sign(pp, aliceSK, aliceMsg, nil)
-	bobSig := Sign(pp, bobSK, bobMsg, nil)
-	carolSig := Sign(pp, carolSK, carolMsg, nil)
+	aliceSig := NewSignature()
+	Sign(pp, aliceSK, aliceMsg, aliceSig)
+
+	bobSig := NewSignature()
+	Sign(pp, bobSK, bobMsg, bobSig)
+
+	carolSig := NewSignature()
+	Sign(pp, carolSK, carolMsg, carolSig)
 
 	sigs := []*Signature{aliceSig, bobSig, carolSig}
 	aggSig := Aggregate(pp, sigs)
@@ -140,7 +135,8 @@ func newUser(pp *PublicParams) *user {
 	u := new(user)
 	u.pk, u.sk = KeyGen(pp)
 	u.msg = bytesx.Random(benchmarkMsgSize)
-	u.sig = Sign(pp, u.sk, u.msg, nil)
+	u.sig = NewSignature()
+	Sign(pp, u.sk, u.msg, u.sig)
 	return u
 }
 
@@ -155,7 +151,7 @@ func BenchmarkSign(b *testing.B) {
 	pp := NewPublicParams()
 
 	var aggSigs []*Signature
-    aggSig := NewSignature()
+	aggSig := NewSignature()
 	for n := 1; n <= benchmarkMaxSignatures; n++ {
 		_, sk := KeyGen(pp)
 		msg := bytesx.Random(benchmarkMsgSize)
@@ -167,7 +163,10 @@ func BenchmarkSign(b *testing.B) {
 		_, sk := KeyGen(pp)
 		msg := bytesx.Random(benchmarkMsgSize)
 		for b.Loop() {
-			Sign(pp, sk, msg, nil)
+			b.StopTimer()
+			aggSig := NewSignature()
+			b.StartTimer()
+			Sign(pp, sk, msg, aggSig)
 		}
 	})
 
@@ -176,9 +175,9 @@ func BenchmarkSign(b *testing.B) {
 			_, sk := KeyGen(pp)
 			msg := bytesx.Random(benchmarkMsgSize)
 			for b.Loop() {
-                b.StopTimer()
-                aggSig := aggSigs[n-1].Clone()
-                b.StartTimer()
+				b.StopTimer()
+				aggSig := aggSigs[n-1].Clone()
+				b.StartTimer()
 				Sign(pp, sk, msg, aggSig)
 			}
 		})

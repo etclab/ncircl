@@ -12,26 +12,10 @@ func TestSign(t *testing.T) {
 	pp := NewPublicParams()
 	alicePK, aliceSK := KeyGen(pp)
 
-	sig := Sign(pp, aliceSK, msg, nil)
+	sig := NewSignature()
+	Sign(pp, aliceSK, msg, sig)
 
 	valid := Verify(pp, []*PublicKey{alicePK}, msg, sig)
-	if !valid {
-		t.Fatal("expected Verify to return true; got false")
-	}
-}
-
-func TestSignInitialSignaturee(t *testing.T) {
-	msg := []byte("The quick brown fox jumps over the lazy dog.")
-	pp := NewPublicParams()
-	alicePK, aliceSK := KeyGen(pp)
-
-    sigA := NewSignature()
-	sigB := Sign(pp, aliceSK, msg, sigA)
-    if sigA != sigB {
-        t.Fatal("Sign: return value is not the same address as the in-out signature parameter")
-    }
-
-	valid := Verify(pp, []*PublicKey{alicePK}, msg, sigA)
 	if !valid {
 		t.Fatal("expected Verify to return true; got false")
 	}
@@ -64,9 +48,14 @@ func TestAggregate(t *testing.T) {
 	carolPK, carolSK := KeyGen(pp)
 	pks := []*PublicKey{alicePK, bobPK, carolPK}
 
-	aliceSig := Sign(pp, aliceSK, msg, nil)
-	bobSig := Sign(pp, bobSK, msg, nil)
-	carolSig := Sign(pp, carolSK, msg, nil)
+	aliceSig := NewSignature()
+	Sign(pp, aliceSK, msg, aliceSig)
+
+	bobSig := NewSignature()
+	Sign(pp, bobSK, msg, bobSig)
+
+	carolSig := NewSignature()
+	Sign(pp, carolSK, msg, carolSig)
 
 	allSigs := []*Signature{aliceSig, bobSig, carolSig}
 	muSig := Aggregate(pp, allSigs)
@@ -91,7 +80,8 @@ type user struct {
 func newUser(pp *PublicParams, msg []byte) *user {
 	u := new(user)
 	u.pk, u.sk = KeyGen(pp)
-	u.sig = Sign(pp, u.sk, msg, nil)
+	u.sig = NewSignature()
+	Sign(pp, u.sk, msg, u.sig)
 	return u
 }
 
@@ -107,17 +97,20 @@ func BenchmarkSign(b *testing.B) {
 	pp := NewPublicParams()
 
 	var muSigs []*Signature
-    muSig := NewSignature()
+	muSig := NewSignature()
 	for n := 1; n <= benchmarkMaxSignatures; n++ {
 		_, sk := KeyGen(pp)
-        Sign(pp, sk, msg, muSig)
+		Sign(pp, sk, msg, muSig)
 		muSigs = append(muSigs, muSig.Clone())
 	}
 
 	b.Run("numPrevSigs:0", func(b *testing.B) {
 		_, sk := KeyGen(pp)
 		for b.Loop() {
-			_ = Sign(pp, sk, msg, nil)
+			b.StopTimer()
+			sig := NewSignature()
+			b.StartTimer()
+			Sign(pp, sk, msg, sig)
 		}
 	})
 
@@ -125,10 +118,10 @@ func BenchmarkSign(b *testing.B) {
 		b.Run(fmt.Sprintf("numPrevSigs:%d", n), func(b *testing.B) {
 			_, sk := KeyGen(pp)
 			for b.Loop() {
-                b.StopTimer()
-                muSig := muSigs[n-1].Clone()
-                b.StartTimer()
-				_ = Sign(pp, sk, msg, muSig)
+				b.StopTimer()
+				muSig := muSigs[n-1].Clone()
+				b.StartTimer()
+				Sign(pp, sk, msg, muSig)
 			}
 		})
 	}

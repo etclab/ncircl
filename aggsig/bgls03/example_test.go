@@ -19,7 +19,7 @@ func ExampleSign() {
 	carolPK, carolSK := bgls03.KeyGen(pp)
 	pks := []*bgls03.PublicKey{alicePK, bobPK, carolPK}
 
-    aggSig := bgls03.NewSignature()
+	aggSig := bgls03.NewSignature()
 	bgls03.Sign(pp, aliceSK, aliceMsg, aggSig)
 	bgls03.Sign(pp, bobSK, bobMsg, aggSig)
 	bgls03.Sign(pp, carolSK, carolMsg, aggSig)
@@ -43,9 +43,14 @@ func ExampleAggregate() {
 	carolPK, carolSK := bgls03.KeyGen(pp)
 	pks := []*bgls03.PublicKey{alicePK, bobPK, carolPK}
 
-	aliceSig := bgls03.Sign(pp, aliceSK, aliceMsg, nil)
-	bobSig := bgls03.Sign(pp, bobSK, bobMsg, nil)
-	carolSig := bgls03.Sign(pp, carolSK, carolMsg, nil)
+	aliceSig := bgls03.NewSignature()
+	bgls03.Sign(pp, aliceSK, aliceMsg, aliceSig)
+
+	bobSig := bgls03.NewSignature()
+	bgls03.Sign(pp, bobSK, bobMsg, bobSig)
+
+	carolSig := bgls03.NewSignature()
+	bgls03.Sign(pp, carolSK, carolMsg, carolSig)
 
 	allSigs := []*bgls03.Signature{aliceSig, bobSig, carolSig}
 	aggSig := bgls03.Aggregate(pp, allSigs)

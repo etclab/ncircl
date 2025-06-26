@@ -171,9 +171,9 @@ func BenchmarkReEncrypt(b *testing.B) {
 
 			rkAliceToBob := ReEncryptionKeyGen(pp, aliceSK, bobSK)
 			for b.Loop() {
-                b.StopTimer()
-                ctNew := ct.Clone()
-                b.StartTimer()
+				b.StopTimer()
+				ctNew := ct.Clone()
+				b.StartTimer()
 				ReEncrypt(pp, rkAliceToBob, ctNew)
 			}
 		})

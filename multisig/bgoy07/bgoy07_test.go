@@ -15,35 +15,13 @@ func TestSingleSign(t *testing.T) {
 	alicePK, aliceSK := KeyGen(pp)
 	pubkeys := []*PublicKey{alicePK}
 
-	muSig, err := Sign(pp, aliceSK, m, nil, nil)
+	sig := NewSignature()
+	err := Sign(pp, aliceSK, m, sig, nil)
 	if err != nil {
 		t.Fatalf("Alice sign failed: %v", err)
 	}
 
-	err = Verify(pp, pubkeys, m, muSig)
-	if err != nil {
-		t.Fatalf("expected Verify to return nil; got %v", err)
-	}
-}
-
-func TestSingleSignInitialSignautre(t *testing.T) {
-	m := []byte("The quick brown fox jumps over the lazy dog.")
-
-	pp := NewPublicParams()
-
-	alicePK, aliceSK := KeyGen(pp)
-	pubkeys := []*PublicKey{alicePK}
-
-    sigA := NewSignature()
-	sigB, err := Sign(pp, aliceSK, m, sigA, nil)
-	if err != nil {
-		t.Fatalf("Alice sign failed: %v", err)
-	}
-    if sigA != sigB {
-        t.Fatal("Sign: return value is not the same address as the in-out signature parameter")
-    }
-
-	err = Verify(pp, pubkeys, m, sigA)
+	err = Verify(pp, pubkeys, m, sig)
 	if err != nil {
 		t.Fatalf("expected Verify to return nil; got %v", err)
 	}
@@ -59,17 +37,18 @@ func TestMultiSign(t *testing.T) {
 	carolPK, carolSK := KeyGen(pp)
 	pubkeys := []*PublicKey{alicePK, bobPK, carolPK}
 
-	muSig, err := Sign(pp, aliceSK, m, nil, nil)
+	muSig := NewSignature()
+	err := Sign(pp, aliceSK, m, muSig, nil)
 	if err != nil {
 		t.Fatalf("Alice sign failed: %v", err)
 	}
 
-	muSig, err = Sign(pp, bobSK, m, muSig, pubkeys[:1])
+	err = Sign(pp, bobSK, m, muSig, pubkeys[:1])
 	if err != nil {
 		t.Fatalf("Bob sign failed: %v", err)
 	}
 
-	muSig, err = Sign(pp, carolSK, m, muSig, pubkeys[:2])
+	err = Sign(pp, carolSK, m, muSig, pubkeys[:2])
 	if err != nil {
 		t.Fatalf("Carol sign failed: %v", err)
 	}
@@ -110,10 +89,10 @@ func BenchmarkSign(b *testing.B) {
 	var muSigs []*Signature
 	var pks []*PublicKey
 
-    muSig := NewSignature()
+	muSig := NewSignature()
 	for n := 1; n <= benchmarkMaxSignatures; n++ {
 		u := newUser(pp)
-        _, err := Sign(pp, u.sk, msg, muSig, pks[:n-1])
+		err := Sign(pp, u.sk, msg, muSig, pks[:n-1])
 		if err != nil {
 			b.Fatalf("Sign failed: %v", err)
 		}
@@ -122,9 +101,12 @@ func BenchmarkSign(b *testing.B) {
 	}
 
 	b.Run("numPrevSigs:0", func(b *testing.B) {
-        _, sk := KeyGen(pp)
+		_, sk := KeyGen(pp)
 		for b.Loop() {
-			_, err := Sign(pp, sk, msg, nil, nil)
+			b.StopTimer()
+			muSig := NewSignature()
+			b.StartTimer()
+			err := Sign(pp, sk, msg, muSig, nil)
 			if err != nil {
 				b.Fatalf("Sign failed: %v", err)
 			}
@@ -133,12 +115,12 @@ func BenchmarkSign(b *testing.B) {
 
 	for n := 1; n <= benchmarkMaxSignatures; n *= 2 {
 		b.Run(fmt.Sprintf("numPrevSigs:%d", n), func(b *testing.B) {
-		    _, sk := KeyGen(pp)
+			_, sk := KeyGen(pp)
 			for b.Loop() {
-                b.StopTimer()
-                muSig := muSigs[n-1].Clone()
-                b.StartTimer()
-				_, err := Sign(pp, sk, msg, muSig, pks[:n])
+				b.StopTimer()
+				muSig := muSigs[n-1].Clone()
+				b.StartTimer()
+				err := Sign(pp, sk, msg, muSig, pks[:n])
 				if err != nil {
 					b.Fatalf("Sign failed: %v", err)
 				}
@@ -154,11 +136,11 @@ func BenchmarkVerify(b *testing.B) {
 	var muSigs []*Signature
 	var pks []*PublicKey
 
-    var err error
-    muSig := NewSignature()
+	var err error
+	muSig := NewSignature()
 	for n := 1; n <= benchmarkMaxSignatures; n++ {
 		u := newUser(pp)
-		_, err = Sign(pp, u.sk, msg, muSig, pks[:n-1])
+		err = Sign(pp, u.sk, msg, muSig, pks[:n-1])
 		if err != nil {
 			b.Fatalf("Sign failed: %v", err)
 		}

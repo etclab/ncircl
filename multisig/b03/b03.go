@@ -53,7 +53,7 @@ func (sig *Signature) Clone() *Signature {
 }
 
 func (sig *Signature) Equal(other *Signature) bool {
-    return sig.Sig.IsEqual(other.Sig)
+	return sig.Sig.IsEqual(other.Sig)
 }
 
 func Aggregate(_ *PublicParams, sigs []*Signature) *Signature {
@@ -66,18 +66,12 @@ func Aggregate(_ *PublicParams, sigs []*Signature) *Signature {
 	return muSig
 }
 
-func Sign(pp *PublicParams, sk *PrivateKey, msg []byte, muSig *Signature) *Signature {
+func Sign(pp *PublicParams, sk *PrivateKey, msg []byte, muSig *Signature) {
 	h := blspairing.HashBytesToG1(msg, nil)
 	s := NewSignature()
 	s.Sig.ScalarMult(sk.X, h)
 
-	if muSig == nil {
-		return s
-	}
-
 	muSig.Sig.Add(s.Sig, muSig.Sig)
-
-	return muSig
 }
 
 func Verify(pp *PublicParams, pks []*PublicKey, msg []byte, sig *Signature) bool {
