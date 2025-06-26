@@ -25,7 +25,7 @@ func TestSignInitialSignature(t *testing.T) {
     sigA := NewSignature()
 	sigB := Sign(pp, sk, m, sigA)
 
-    if sigA != sigB
+    if sigA != sigB {
         t.Fatal("Sign: return value is not the same address as the in-out signature parameter")
     }
 
