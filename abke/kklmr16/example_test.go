@@ -118,7 +118,8 @@ func Example_simulateKeyExchange() {
 	// server encrypts the ASE plaintext to the client's public key;
 	ct := kklmr16.Encrypt(pp, alicePK, nil, asePTs)
 
-	// NET: server sends the ciphertext ct, garbled circuit, and tt to the client
+	// NET: server sends the ciphertext ct, garbled circuit, and ttables to the
+	// client
 
 	// client decrypts the ciphertext; the resultant "plaintext" is the
 	// AES-encrypted input labels

@@ -24,3 +24,21 @@ func Random(n int) []bool {
 
 	return out
 }
+
+func All(a []bool) bool {
+	for _, x := range a {
+		if !x {
+			return false
+		}
+	}
+	return true
+}
+
+func Any(a []bool) bool {
+	for _, x := range a {
+		if x {
+			return true
+		}
+	}
+	return false
+}

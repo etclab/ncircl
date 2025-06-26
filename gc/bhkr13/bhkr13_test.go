@@ -24,24 +24,6 @@ func subtestName(inputBits []bool) string {
 	return strings.Join(strs, "")
 }
 
-func andBits(bits []bool) bool {
-	for _, b := range bits {
-		if b == false {
-			return false
-		}
-	}
-	return true
-}
-
-func orBits(bits []bool) bool {
-	for _, b := range bits {
-		if b == true {
-			return true
-		}
-	}
-	return false
-}
-
 func TestGateAND(t *testing.T) {
 	trials := []struct {
 		inputBits []bool
@@ -542,7 +524,7 @@ func BenchmarkEvalCircuitAND(b *testing.B) {
 		for numInputs := 2; numInputs < 32; numInputs++ {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
 				inputBits := boolx.Random(numInputs)
-				expected := andBits(inputBits)
+				expected := boolx.All(inputBits)
 
 				inputLabels := make([]uint128.Uint128, 2*numInputs)
 				outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -629,7 +611,7 @@ func BenchmarkEvalCircuitOR(b *testing.B) {
 		for numInputs := 2; numInputs < 32; numInputs++ {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
 				inputBits := boolx.Random(numInputs)
-				expected := orBits(inputBits)
+				expected := boolx.Any(inputBits)
 
 				inputLabels := make([]uint128.Uint128, 2*numInputs)
 				outputLabels := make([]uint128.Uint128, 2*numOutputs)
