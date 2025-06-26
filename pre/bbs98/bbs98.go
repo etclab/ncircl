@@ -88,6 +88,13 @@ func newCiphertext() *Ciphertext {
 	return ct
 }
 
+func (ct *Ciphertext) Clone() *Ciphertext {
+	ctNew := new(Ciphertext)
+	ctNew.C1 = ct.C1.Clone()
+	ctNew.C2 = ct.C2.Clone()
+	return ctNew
+}
+
 func Encrypt(pp *PublicParams, pk *PublicKey, msg *ecc.Point) (*Ciphertext, error) {
 	curve := pp.Curve
 	params := curve.Params()
@@ -104,15 +111,16 @@ func Encrypt(pp *PublicParams, pk *PublicKey, msg *ecc.Point) (*Ciphertext, erro
 	ct := newCiphertext()
 	x, y := curve.ScalarBaseMult(r.Bytes())
 	ct.C1.X, ct.C1.Y = curve.Add(x, y, msg.X, msg.Y)
-
 	ct.C2.X, ct.C2.Y = curve.ScalarMult(pk.X, pk.Y, r.Bytes())
 
 	return ct, nil
 }
 
-func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct *Ciphertext) {
+func ReEncrypt(pp *PublicParams, rk *ReEncryptionKey, ct *Ciphertext) *Ciphertext {
 	curve := pp.Curve
-	ct.C2.X, ct.C2.Y = curve.ScalarMult(ct.C2.X, ct.C2.Y, rk.RK.Bytes())
+	ctNew := ct.Clone()
+	ctNew.C2.X, ctNew.C2.Y = curve.ScalarMult(ct.C2.X, ct.C2.Y, rk.RK.Bytes())
+	return ctNew
 }
 
 func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) *ecc.Point {
