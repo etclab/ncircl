@@ -253,6 +253,175 @@ func (pk *PublicKey) String() string {
 	return sb.String()
 }
 
+func (pk *PublicKey) MarshalBinary() ([]byte, error) {
+	g1Size := bls.G1SizeCompressed
+
+	totalSize := 8 + 6*g1Size + len(pk.Es)*g1Size + len(pk.ESigs)*g1Size
+
+	buf := make([]byte, totalSize)
+	binary.BigEndian.PutUint32(buf[0:4], uint32(len(pk.Es)))
+	offset := 4
+	binary.BigEndian.PutUint32(buf[offset:offset+4], uint32(len(pk.ESigs)))
+	offset += 4
+	copy(buf[offset:offset+g1Size], pk.G.BytesCompressed())
+	offset += g1Size
+	copy(buf[offset:offset+g1Size], pk.GSig.BytesCompressed())
+	offset += g1Size
+	copy(buf[offset:offset+g1Size], pk.H.BytesCompressed())
+	offset += g1Size
+	copy(buf[offset:offset+g1Size], pk.HSig.BytesCompressed())
+	offset += g1Size
+	copy(buf[offset:offset+g1Size], pk.U.BytesCompressed())
+	offset += g1Size
+	copy(buf[offset:offset+g1Size], pk.USig.BytesCompressed())
+	offset += g1Size
+
+	for i, e := range pk.Es {
+		if e == nil {
+			return nil, fmt.Errorf("Es[%d] is nil", i)
+		}
+		if len(e.BytesCompressed()) != g1Size {
+			return nil, fmt.Errorf("Es[%d] has unexpected size: %d bytes", i, len(e.BytesCompressed()))
+		}
+		copy(buf[offset:offset+g1Size], e.BytesCompressed())
+		offset += g1Size
+	}
+
+	for i, esig := range pk.ESigs {
+		if esig == nil {
+			return nil, fmt.Errorf("ESigs[%d] is nil", i)
+		}
+		if len(esig.BytesCompressed()) != g1Size {
+			return nil, fmt.Errorf("ESigs[%d] has unexpected size: %d bytes", i, len(esig.BytesCompressed()))
+		}
+		copy(buf[offset:offset+g1Size], esig.BytesCompressed())
+		offset += g1Size
+	}
+
+	return buf, nil
+
+}
+
+func (pk *PublicKey) UnmarshalBinary(data []byte) error {
+	g1Size := bls.G1SizeCompressed
+
+	if len(data) < 4+2*g1Size {
+		return fmt.Errorf("data too short: %d bytes", len(data))
+	}
+
+	numEs := binary.BigEndian.Uint32(data[0:4])
+	if len(data) < 4+2*g1Size+int(numEs)*g1Size {
+		return fmt.Errorf("data too short for Es: %d bytes", 4+2*g1Size+int(numEs)*g1Size)
+	}
+	numESigs := binary.BigEndian.Uint32(data[4:8])
+	if len(data) < 4+2*g1Size+int(numEs)*g1Size+int(numESigs)*g1Size {
+		return fmt.Errorf("data too short for ESigs: %d bytes", 4+2*g1Size+int(numEs)*g1Size+int(numESigs)*g1Size)
+	}
+
+	pk.Es = make([]*bls.G1, numEs)
+	pk.ESigs = make([]*bls.G1, numESigs)
+	offset := 8
+
+	pk.G = new(bls.G1)
+	if err := pk.G.SetBytes(data[offset : offset+g1Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal G: %w", err)
+	}
+	offset += g1Size
+
+	pk.GSig = new(bls.G1)
+	if err := pk.GSig.SetBytes(data[offset : offset+g1Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal GSig: %w", err)
+	}
+	offset += g1Size
+
+	pk.H = new(bls.G1)
+	if err := pk.H.SetBytes(data[offset : offset+g1Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal H: %w", err)
+	}
+	offset += g1Size
+
+	pk.HSig = new(bls.G1)
+	if err := pk.HSig.SetBytes(data[offset : offset+g1Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal HSig: %w", err)
+	}
+	offset += g1Size
+
+	pk.U = new(bls.G1)
+	if err := pk.U.SetBytes(data[offset : offset+g1Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal U: %w", err)
+	}
+	offset += g1Size
+
+	pk.USig = new(bls.G1)
+	if err := pk.USig.SetBytes(data[offset : offset+g1Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal USig: %w", err)
+	}
+	offset += g1Size
+
+	for i := 0; i < int(numEs); i++ {
+		if offset+g1Size > len(data) {
+			return fmt.Errorf("data too short for Es[%d]", i)
+		}
+		pk.Es[i] = new(bls.G1)
+		if err := pk.Es[i].SetBytes(data[offset : offset+g1Size]); err != nil {
+			return fmt.Errorf("failed to unmarshal Es[%d]: %w", i, err)
+		}
+		offset += g1Size
+	}
+
+	for i := 0; i < int(numESigs); i++ {
+		if offset+g1Size > len(data) {
+			return fmt.Errorf("data too short for ESigs[%d]", i)
+		}
+		pk.ESigs[i] = new(bls.G1)
+		if err := pk.ESigs[i].SetBytes(data[offset : offset+g1Size]); err != nil {
+			return fmt.Errorf("failed to unmarshal ESigs[%d]: %w", i, err)
+		}
+		offset += g1Size
+	}
+
+	if offset != len(data) {
+		return fmt.Errorf("data length mismatch: expected %d bytes, got %d bytes", len(data), offset)
+	}
+	if len(pk.Es) != len(pk.ESigs) {
+		return fmt.Errorf("Es and ESigs length mismatch: len(Es)=%d, len(ESigs)=%d", len(pk.Es), len(pk.ESigs))
+	}
+
+	return nil
+}
+
+func (pk *PublicKey) IsEqual(other *PublicKey) bool {
+	if pk == nil || other == nil {
+		return pk == other
+	}
+
+	if !pk.G.IsEqual(other.G) || !pk.H.IsEqual(other.H) || !pk.U.IsEqual(other.U) {
+		return false
+	}
+
+	if !pk.GSig.IsEqual(other.GSig) || !pk.HSig.IsEqual(other.HSig) || !pk.USig.IsEqual(other.USig) {
+		return false
+	}
+
+	if len(pk.Es) != len(other.Es) || len(pk.ESigs) != len(other.ESigs) {
+		return false
+	}
+
+	for i := range pk.Es {
+		if !pk.Es[i].IsEqual(other.Es[i]) {
+			return false
+		}
+	}
+
+	for i := range pk.ESigs {
+		if !pk.ESigs[i].IsEqual(other.ESigs[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Vrfy, ase_homosig_vrfy
 func (pk *PublicKey) Verify(pp *PublicParams, mpk *MPK) bool {
 	// g ∈ G\{1}
@@ -311,6 +480,110 @@ func (sk *PrivateKey) String() string {
 		fmt.Fprintf(sb, "[%d] = %v\n", i, r)
 	}
 	return sb.String()
+}
+
+func (sk *PrivateKey) MarshalBinary() ([]byte, error) {
+	scalarSize := bls.ScalarSize
+	totalSize := 4 + len(sk.Rs)*scalarSize + len(sk.Attrs)
+	buf := make([]byte, totalSize)
+	binary.BigEndian.PutUint32(buf[0:4], uint32(len(sk.Rs)))
+	offset := 4
+	for i, r := range sk.Rs {
+		if r == nil {
+			return nil, fmt.Errorf("Rs[%d] is nil", i)
+		}
+		rb, err := r.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal Rs[%d]: %w", i, err)
+		}
+
+		if len(rb) != scalarSize {
+			return nil, fmt.Errorf("Rs[%d] has unexpected size: %d bytes", i, len(rb))
+		}
+		copy(buf[offset:offset+scalarSize], rb)
+		offset += scalarSize
+	}
+
+	for _, attr := range sk.Attrs {
+		if attr {
+			buf[offset] = 1
+		} // else 0 (zero-initialized)
+		offset++
+	}
+
+	if offset != len(buf) {
+		return nil, fmt.Errorf("data length mismatch: expected %d bytes, got %d bytes", len(buf), offset)
+	}
+	return buf, nil
+
+}
+
+func (sk *PrivateKey) UnmarshalBinary(data []byte) error {
+	scalarSize := bls.ScalarSize
+
+	if len(data) < 4+scalarSize {
+		return fmt.Errorf("data too short: %d bytes", len(data))
+	}
+
+	numRs := int(binary.BigEndian.Uint32(data[0:4]))
+	if len(data) < 4+numRs*scalarSize {
+		return fmt.Errorf("data too short for Rs: %d bytes", 4+numRs*scalarSize)
+	}
+
+	sk.Rs = make([]*bls.Scalar, numRs)
+	offset := 4
+
+	for i := 0; i < int(numRs); i++ {
+		if offset+scalarSize > len(data) {
+			return fmt.Errorf("data too short for Rs[%d]", i)
+		}
+		sk.Rs[i] = new(bls.Scalar)
+		if err := sk.Rs[i].UnmarshalBinary(data[offset : offset+scalarSize]); err != nil {
+			return fmt.Errorf("failed to unmarshal Rs[%d]: %w", i, err)
+		}
+		offset += scalarSize
+	}
+
+	if offset >= len(data) {
+		return fmt.Errorf("data too short for Attrs")
+	}
+
+	sk.Attrs = make([]bool, numRs)
+	for i := 0; i < int(numRs); i++ {
+		sk.Attrs[i] = data[offset] == 1
+		offset++
+	}
+
+	if offset != len(data) {
+		return fmt.Errorf("data length mismatch: expected %d bytes, got %d bytes", len(data), offset)
+	}
+
+	return nil
+
+}
+
+func (sk *PrivateKey) IsEqual(other *PrivateKey) bool {
+	if sk == nil || other == nil {
+		return sk == other
+	}
+
+	if len(sk.Rs) != len(other.Rs) || len(sk.Attrs) != len(other.Attrs) {
+		return false
+	}
+	for i := range sk.Rs {
+		if sk.Rs[i] == nil || other.Rs[i] == nil {
+			return false
+		}
+		if sk.Rs[i].IsEqual(other.Rs[i]) == 0 {
+			return false
+		}
+	}
+	for i := range sk.Attrs {
+		if sk.Attrs[i] != other.Attrs[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // Unlink, ase_homosig_unlink

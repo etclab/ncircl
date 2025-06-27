@@ -9,6 +9,54 @@ import (
 	"github.com/etclab/ncircl/util/boolx"
 )
 
+func TestMarshalPublicKey(t *testing.T) {
+	for numAttrs := 1; numAttrs < 1025; numAttrs *= 2 {
+		t.Run(fmt.Sprintf("numAttrs:%d", numAttrs), func(t *testing.T) {
+			pp := NewPublicParams(numAttrs)
+			ca := NewCertificateAuthority(pp)
+			pk, _ := ca.GenCert(boolx.Random(numAttrs))
+
+			data, err := pk.MarshalBinary()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			pk2 := new(PublicKey)
+			if err := pk2.UnmarshalBinary(data); err != nil {
+				t.Fatal(err)
+			}
+
+			if !pk.IsEqual(pk2) {
+				t.Fatal("pk.IsEqual failed")
+			}
+		})
+	}
+}
+
+func TestMarshalPrivateKey(t *testing.T) {
+	for numAttrs := 1; numAttrs < 1025; numAttrs *= 2 {
+		t.Run(fmt.Sprintf("numAttrs:%d", numAttrs), func(t *testing.T) {
+			pp := NewPublicParams(numAttrs)
+			ca := NewCertificateAuthority(pp)
+			_, sk := ca.GenCert(boolx.Random(numAttrs))
+
+			data, err := sk.MarshalBinary()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			sk2 := new(PrivateKey)
+			if err := sk2.UnmarshalBinary(data); err != nil {
+				t.Fatal(err)
+			}
+
+			if !sk.IsEqual(sk2) {
+				t.Fatal("sk.IsEqual failed")
+			}
+		})
+	}
+}
+
 func TestMarshalMasterPublicKey(t *testing.T) {
 	for numAttrs := 1; numAttrs < 1025; numAttrs *= 2 {
 		t.Run(fmt.Sprintf("numAttrs:%d", numAttrs), func(t *testing.T) {
