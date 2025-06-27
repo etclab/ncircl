@@ -126,6 +126,104 @@ func (m *MasterKey) MPK() *MPK {
 	return mpk
 }
 
+func (mpk *MPK) MarshalBinary() ([]byte, error) {
+
+	g2Size := bls.G2SizeCompressed
+
+	totalSize := 4 + 3*g2Size + len(mpk.Js)*g2Size
+
+	buf := make([]byte, totalSize)
+
+	binary.BigEndian.PutUint32(buf[0:4], uint32(len(mpk.Js)))
+	offset := 4
+
+	copy(buf[offset:offset+g2Size], mpk.G.BytesCompressed())
+	offset += g2Size
+
+	copy(buf[offset:offset+g2Size], mpk.H.BytesCompressed())
+	offset += g2Size
+
+	copy(buf[offset:offset+g2Size], mpk.U.BytesCompressed())
+	offset += g2Size
+
+	for _, j := range mpk.Js {
+		copy(buf[offset:offset+g2Size], j.BytesCompressed())
+		offset += g2Size
+	}
+
+	return buf, nil
+
+}
+
+func (mpk *MPK) UnmarshalBinary(data []byte) error {
+	g2Size := bls.G2SizeCompressed
+
+	if len(data) < 4+3*g2Size {
+		return fmt.Errorf("data too short: %d bytes", len(data))
+	}
+
+	numJs := binary.BigEndian.Uint32(data[0:4])
+	offset := 4
+
+	expectedSize := 4 + 3*g2Size + int(numJs)*g2Size
+	if len(data) < expectedSize {
+		return fmt.Errorf("data too short for expected size: %d bytes", expectedSize)
+	}
+
+	mpk.G = new(bls.G2)
+	if err := mpk.G.SetBytes(data[offset : offset+g2Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal G: %w", err)
+	}
+	offset += g2Size
+
+	mpk.H = new(bls.G2)
+	if err := mpk.H.SetBytes(data[offset : offset+g2Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal H: %w", err)
+	}
+	offset += g2Size
+
+	mpk.U = new(bls.G2)
+	if err := mpk.U.SetBytes(data[offset : offset+g2Size]); err != nil {
+		return fmt.Errorf("failed to unmarshal U: %w", err)
+	}
+	offset += g2Size
+
+	mpk.Js = make([]*bls.G2, numJs)
+	for i := uint32(0); i < numJs; i++ {
+		if offset+g2Size > len(data) {
+			return fmt.Errorf("data too short for J[%d]", i)
+		}
+		mpk.Js[i] = new(bls.G2)
+		if err := mpk.Js[i].SetBytes(data[offset : offset+g2Size]); err != nil {
+			return fmt.Errorf("failed to unmarshal J[%d]: %w", i, err)
+		}
+		offset += g2Size
+	}
+	return nil
+}
+
+func (mpk *MPK) IsEqual(other *MPK) bool {
+	if mpk == nil || other == nil {
+		return mpk == other
+	}
+
+	if !mpk.G.IsEqual(other.G) || !mpk.H.IsEqual(other.H) || !mpk.U.IsEqual(other.U) {
+		return false
+	}
+
+	if len(mpk.Js) != len(other.Js) {
+		return false
+	}
+
+	for i := range mpk.Js {
+		if !mpk.Js[i].IsEqual(other.Js[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 type PublicKey struct {
 	G     *bls.G1
 	H     *bls.G1

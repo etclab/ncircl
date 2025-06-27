@@ -9,6 +9,30 @@ import (
 	"github.com/etclab/ncircl/util/boolx"
 )
 
+func TestMarshalMasterPublicKey(t *testing.T) {
+	for numAttrs := 1; numAttrs < 1025; numAttrs *= 2 {
+		t.Run(fmt.Sprintf("numAttrs:%d", numAttrs), func(t *testing.T) {
+			pp := NewPublicParams(numAttrs)
+			ca := NewCertificateAuthority(pp)
+			mpk := ca.MPK()
+
+			data, err := mpk.MarshalBinary()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			mpk2 := new(MPK)
+			if err := mpk2.UnmarshalBinary(data); err != nil {
+				t.Fatal(err)
+			}
+
+			if !mpk.IsEqual(mpk2) {
+				t.Fatal("mpk.IsEqual failed")
+			}
+		})
+	}
+}
+
 func TestPublicKey_Verify(t *testing.T) {
 	for numAttrs := 1; numAttrs < 1025; numAttrs *= 2 {
 		t.Run(fmt.Sprintf("numAttrs:%d", numAttrs), func(t *testing.T) {
