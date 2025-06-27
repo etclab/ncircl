@@ -1,4 +1,9 @@
-all: vet
+progs= sizes
+
+all: $(progs)
+
+$(progs): vet
+	go build ./cmd/$@
 
 vet: fmt
 	go vet ./...

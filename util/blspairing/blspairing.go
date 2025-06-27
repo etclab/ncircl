@@ -38,6 +38,14 @@ func NewScalarFromInt(i int) *bls.Scalar {
 	return z
 }
 
+func ScalarToBytes(k *bls.Scalar) []byte {
+	buf, err := k.MarshalBinary()
+	if err != nil {
+		mu.Panicf("Scalar.MarshalBinary failed: %v", err)
+	}
+	return buf
+}
+
 func NewG1Identity() *bls.G1 {
 	g := new(bls.G1)
 	g.SetIdentity()
