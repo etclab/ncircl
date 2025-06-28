@@ -9,7 +9,7 @@ import (
 	"github.com/etclab/ncircl/util/uint128"
 )
 
-var garbleTypes = []GarbleType{GarbleTypeStandard, GarbleTypePrivacyFree}
+var garbleTypes = []GarbleType{GarbleTypeStandard, GarbleTypeHalfGates, GarbleTypePrivacyFree}
 
 func subtestName(inputBits []bool) string {
 	strs := make([]string, len(inputBits))
@@ -437,7 +437,7 @@ func TestCircuitOR(t *testing.T) {
 
 	numOutputs := 1
 
-	// XXX: CircuitOR only currentlyu works for GarbleTypeStandard
+	// XXX: CircuitOR currently only works for GarbleTypeStandard
 	for _, garbleType := range []GarbleType{GarbleTypeStandard} {
 		for _, trial := range trials {
 			numInputs := len(trial.inputBits)
@@ -485,7 +485,7 @@ func TestCircuitOR(t *testing.T) {
 func BenchmarkGarbleCircuitAND(b *testing.B) {
 	numOutputs := 1
 	for _, garbleType := range garbleTypes {
-		for numInputs := 2; numInputs < 32; numInputs++ {
+		for numInputs := 2; numInputs <= 4096; numInputs *= 2 {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
 				inputLabels := make([]uint128.Uint128, 2*numInputs)
 				outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -521,7 +521,7 @@ func BenchmarkEvalCircuitAND(b *testing.B) {
 	numOutputs := 1
 
 	for _, garbleType := range garbleTypes {
-		for numInputs := 2; numInputs < 32; numInputs++ {
+		for numInputs := 2; numInputs <= 4096; numInputs *= 2 {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
 				inputBits := boolx.Random(numInputs)
 				expected := boolx.All(inputBits)
@@ -569,9 +569,9 @@ func BenchmarkEvalCircuitAND(b *testing.B) {
 
 func BenchmarkGarbleCircuitOR(b *testing.B) {
 	numOutputs := 1
-	// XXX: CircuitOR only currentlyu works for GarbleTypeStandard
+	// XXX: CircuitOR currently only works for GarbleTypeStandard
 	for _, garbleType := range []GarbleType{GarbleTypeStandard} {
-		for numInputs := 2; numInputs < 32; numInputs++ {
+		for numInputs := 2; numInputs <= 4096; numInputs *= 2 {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
 				inputLabels := make([]uint128.Uint128, 2*numInputs)
 				outputLabels := make([]uint128.Uint128, 2*numOutputs)
@@ -606,9 +606,9 @@ func BenchmarkEvalCircuitOR(b *testing.B) {
 
 	numOutputs := 1
 
-	// XXX: CircuitOR only currentlyu works for GarbleTypeStandard
+	// XXX: CircuitOR currently only works for GarbleTypeStandard
 	for _, garbleType := range []GarbleType{GarbleTypeStandard} {
-		for numInputs := 2; numInputs < 32; numInputs++ {
+		for numInputs := 2; numInputs <= 4096; numInputs *= 2 {
 			b.Run(fmt.Sprintf("%v/numInputs:%d", garbleType, numInputs), func(b *testing.B) {
 				inputBits := boolx.Random(numInputs)
 				expected := boolx.Any(inputBits)

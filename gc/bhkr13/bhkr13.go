@@ -389,6 +389,90 @@ func (gc *GarbledCircuit) garbleStandard(delta uint128.Uint128) {
 	}
 }
 
+// src/garble/garble_gate_halfgates.h::garble_gate_garble_gate_halfgates
+func (gc *GarbledCircuit) garbleHalfGate(gate GarbleGate, delta uint128.Uint128, idx, nxors int) {
+	A0 := gc.Wires[2*gate.Input0]
+	A1 := gc.Wires[2*gate.Input0+1]
+	B0 := gc.Wires[2*gate.Input1]
+	B1 := gc.Wires[2*gate.Input1+1]
+	out0 := &gc.Wires[2*gate.Output]
+	out1 := &gc.Wires[2*gate.Output+1]
+
+	if gate.Type == GarbleGateTypeXOR {
+		*out0 = uint128.Xor(A0, B0)
+		*out1 = uint128.Xor(*out0, delta)
+	} else if gate.Type == GarbleGateTypeNOT {
+		*out0 = A1
+		*out1 = A0
+	} else {
+		table := gc.Table[2*(idx-nxors):]
+
+		pa := A0.Lsb()
+		pb := B0.Lsb()
+
+		tweak1 := uint128.Uint128{H: uint64(2 * idx), L: 0}
+		tweak2 := uint128.Uint128{H: uint64(2*idx + 1), L: 0}
+
+		var keys [4]uint128.Uint128
+		var masks [4]uint128.Uint128
+
+		keys[0] = uint128.Xor(garbleDouble(A0), tweak1)
+		keys[1] = uint128.Xor(garbleDouble(A1), tweak1)
+		keys[2] = uint128.Xor(garbleDouble(B0), tweak2)
+		keys[3] = uint128.Xor(garbleDouble(B1), tweak2)
+		copy(masks[:], keys[:])
+
+		// AES_ecb_encrypt_blks(keys, 4, key)
+		keysBytes := make([]byte, 0, 64)
+		keysBytes = append(keysBytes, keys[0].Bytes()...)
+		keysBytes = append(keysBytes, keys[1].Bytes()...)
+		keysBytes = append(keysBytes, keys[2].Bytes()...)
+		keysBytes = append(keysBytes, keys[3].Bytes()...)
+		aesx.EncryptECB(gc.GlobalKey.Bytes(), keysBytes, keysBytes)
+		keys[0].SetBytes(keysBytes[:16])
+		keys[1].SetBytes(keysBytes[16:32])
+		keys[2].SetBytes(keysBytes[32:48])
+		keys[3].SetBytes(keysBytes[48:])
+
+		HA0 := uint128.Xor(keys[0], masks[0])
+		HA1 := uint128.Xor(keys[1], masks[1])
+		HB0 := uint128.Xor(keys[2], masks[2])
+		HB1 := uint128.Xor(keys[3], masks[3])
+
+		table[0] = uint128.Xor(HA0, HA1)
+		if pb == 1 {
+			table[0] = uint128.Xor(table[0], delta)
+		}
+
+		W0 := HA0
+		if pa == 1 {
+			W0 = uint128.Xor(W0, table[0])
+		}
+
+		tmp := uint128.Xor(HB0, HB1)
+		table[1] = uint128.Xor(tmp, A0)
+		W0 = uint128.Xor(W0, HB0)
+		if pb == 1 {
+			W0 = uint128.Xor(W0, tmp)
+
+		}
+
+		*out0 = W0
+		*out1 = uint128.Xor(*out0, delta)
+	}
+}
+
+// src/garble.c//_garble_halfgates
+func (gc *GarbledCircuit) garbleHalfGates(delta uint128.Uint128) {
+	nxors := 0
+	for i, gate := range gc.Gates {
+		if gate.Type == GarbleGateTypeXOR {
+			nxors += 1
+		}
+		gc.garbleHalfGate(gate, delta, i, nxors)
+	}
+}
+
 // src/garble/garble_gate_privacy_free.h::garble_gate_garble_privacy_free
 func (gc *GarbledCircuit) garblePrivacyFreeGate(gate GarbleGate, delta uint128.Uint128, idx, nxors int) {
 	A0 := gc.Wires[2*gate.Input0]
@@ -454,6 +538,8 @@ func (gc *GarbledCircuit) Garble(inputLabels, outputLabels []uint128.Uint128) er
 	switch gc.Type {
 	case GarbleTypeStandard:
 		gc.Table = make([]uint128.Uint128, 3*(len(gc.Gates)-gc.NumXors))
+	case GarbleTypeHalfGates:
+		gc.Table = make([]uint128.Uint128, 2*(len(gc.Gates)-gc.NumXors))
 	case GarbleTypePrivacyFree:
 		gc.Table = make([]uint128.Uint128, len(gc.Gates)-gc.NumXors)
 	default:
@@ -497,6 +583,8 @@ func (gc *GarbledCircuit) Garble(inputLabels, outputLabels []uint128.Uint128) er
 	switch gc.Type {
 	case GarbleTypeStandard:
 		gc.garbleStandard(delta)
+	case GarbleTypeHalfGates:
+		gc.garbleHalfGates(delta)
 	case GarbleTypePrivacyFree:
 		gc.garblePrivacyFree(delta)
 	default:
@@ -565,6 +653,65 @@ func (gc *GarbledCircuit) evalStandard(labels []uint128.Uint128) {
 	}
 }
 
+// src/garble/garble_gate_halfgatesh::garble_gate_eval_halfgates
+func (gc *GarbledCircuit) evalHalfGate(gate GarbleGate, labels []uint128.Uint128, idx, nxors int) {
+	A := labels[gate.Input0]
+	B := labels[gate.Input1]
+	out := &labels[gate.Output]
+
+	if gate.Type == GarbleGateTypeXOR {
+		*out = uint128.Xor(A, B)
+	} else if gate.Type == GarbleGateTypeNOT {
+		*out = A
+	} else {
+		table := gc.Table[2*(idx-nxors):]
+		sa := A.Lsb()
+		sb := B.Lsb()
+
+		tweak1 := uint128.Uint128{H: uint64(2 * idx), L: 0}
+		tweak2 := uint128.Uint128{H: uint64(2*idx + 1), L: 0}
+
+		keys := make([]uint128.Uint128, 2)
+		masks := make([]uint128.Uint128, 2)
+
+		keys[0] = uint128.Xor(garbleDouble(A), tweak1)
+		keys[1] = uint128.Xor(garbleDouble(B), tweak2)
+		copy(masks[:], keys[:])
+
+		// AES_ecb_encrypt_blocks(keys, 2, key)
+		keysBytes := make([]byte, 0, 32)
+		keysBytes = append(keysBytes, keys[0].Bytes()...)
+		keysBytes = append(keysBytes, keys[1].Bytes()...)
+		aesx.EncryptECB(gc.GlobalKey.Bytes(), keysBytes, keysBytes)
+		keys[0].SetBytes(keysBytes[:16])
+		keys[1].SetBytes(keysBytes[16:])
+
+		HA := uint128.Xor(keys[0], masks[0])
+		HB := uint128.Xor(keys[1], masks[1])
+
+		W := uint128.Xor(HA, HB)
+		if sa == 1 {
+			W = uint128.Xor(W, table[0])
+		}
+		if sb == 1 {
+			W = uint128.Xor(W, table[1])
+			W = uint128.Xor(W, A)
+		}
+		*out = W
+	}
+}
+
+// src/eval.c::_eval_halfgates
+func (gc *GarbledCircuit) evalHalfGates(labels []uint128.Uint128) {
+	nxors := 0
+	for i, gate := range gc.Gates {
+		if gate.Type == GarbleGateTypeXOR {
+			nxors += 1
+		}
+		gc.evalHalfGate(gate, labels, i, nxors)
+	}
+}
+
 // src/garble/garble_gate_privacy_free.h::garble_gate_eval_privacy_free
 func (gc *GarbledCircuit) evalPrivacyFreeGate(gate GarbleGate, labels []uint128.Uint128, idx, nxors int) {
 	A := labels[gate.Input0]
@@ -630,6 +777,8 @@ func (gc *GarbledCircuit) Eval(inputLabels, outputLabels []uint128.Uint128, outp
 	switch gc.Type {
 	case GarbleTypeStandard:
 		gc.evalStandard(labels)
+	case GarbleTypeHalfGates:
+		gc.evalHalfGates(labels)
 	case GarbleTypePrivacyFree:
 		gc.evalPrivacyFree(labels)
 	default:
