@@ -9,6 +9,7 @@ import (
 	"github.com/etclab/mu"
 	"github.com/etclab/ncircl/aggsig/bgls03"
 	"github.com/etclab/ncircl/ecc"
+	"github.com/etclab/ncircl/gc/bhkr13"
 	"github.com/etclab/ncircl/multisig/b03"
 	"github.com/etclab/ncircl/multisig/bgoy07"
 	"github.com/etclab/ncircl/pre/afgh05"
@@ -17,14 +18,76 @@ import (
 	"github.com/etclab/ncircl/pre/lv08"
 	"github.com/etclab/ncircl/util/blspairing"
 	"github.com/etclab/ncircl/util/bytesx"
+	"github.com/etclab/ncircl/util/uint128"
 )
 
-func sizeofECCPoint(p *ecc.Point) int {
+const SizeOfInt = 8
+
+func sizeOfECCPoint(p *ecc.Point) int {
 	return len(p.X.Bytes()) + len(p.Y.Bytes())
 }
 
-func sizeofBigInt(k *big.Int) int {
+func sizeOfBigInt(k *big.Int) int {
 	return len(k.Bytes())
+}
+
+func sizeOfBhkr13GarbledCircuit(gc *bhkr13.GarbledCircuit) int {
+	n := 0
+
+	// GarbleType NumInputs, NumWires, NumXors
+	n += 4 * SizeOfInt
+	n += len(gc.Gates) * (4 * SizeOfInt)
+	n += len(gc.Table) * uint128.SizeOfUint128
+	n += len(gc.Wires) * uint128.SizeOfUint128
+	n += len(gc.Outputs) * SizeOfInt
+	n += len(gc.OutputPerms)
+
+	// FixedLabel, GlobalKey
+	n += 2 * uint128.SizeOfUint128
+
+	return n
+}
+
+func gc_bhkr13() {
+	fmt.Println("\ngc/bhkr13")
+
+	garbleTypes := []bhkr13.GarbleType{
+		bhkr13.GarbleTypeStandard,
+		bhkr13.GarbleTypeHalfGates,
+		bhkr13.GarbleTypePrivacyFree,
+	}
+
+	numOutputs := 1
+	for _, garbleType := range garbleTypes {
+		fmt.Printf("\t%v\n", garbleType)
+		for numInputs := 2; numInputs <= 4096; numInputs *= 2 {
+			inputLabels := make([]uint128.Uint128, 2*numInputs)
+			outputLabels := make([]uint128.Uint128, 2*numOutputs)
+			gc := bhkr13.NewGarbledCircuit(numInputs, numOutputs, garbleType, nil)
+			gc.StartBuilding()
+
+			inputWires := make([]int, numInputs)
+			for i := 0; i < len(inputWires); i++ {
+				inputWires[i] = i
+			}
+			outputWires := make([]int, numOutputs)
+
+			gc.CircuitAND(inputWires, outputWires)
+			gc.FinishBuilding(outputWires)
+
+			err := gc.Garble(nil, outputLabels)
+			if err != nil {
+				mu.Fatalf("gc.Garble failed: %v", err)
+			}
+
+			for i := 0; i < numInputs; i++ {
+				inputLabels[2*i] = gc.Wires[2*i]
+				inputLabels[2*i+1] = gc.Wires[2*i+1]
+			}
+
+			fmt.Printf("\t\t%d AND Gates: %d\n", numInputs, sizeOfBhkr13GarbledCircuit(gc))
+		}
+	}
 }
 
 func aggsig_bgls03() {
@@ -204,13 +267,13 @@ func pre_bbs98() {
 	pp := bbs98.NewPublicParams(elliptic.P256())
 
 	alicePK, aliceSK := bbs98.KeyGen(pp)
-	fmt.Printf("\tPublicKey: %d\n", sizeofECCPoint(&alicePK.Point))
-	fmt.Printf("\tPrivateKey: %d\n", sizeofBigInt(aliceSK.K))
+	fmt.Printf("\tPublicKey: %d\n", sizeOfECCPoint(&alicePK.Point))
+	fmt.Printf("\tPrivateKey: %d\n", sizeOfBigInt(aliceSK.K))
 
 	_, bobSK := bbs98.KeyGen(pp)
 
 	rkAliceToBob := bbs98.ReEncryptionKeyGen(pp, aliceSK, bobSK)
-	fmt.Printf("\tReEncryptionKey: %d\n", sizeofBigInt(rkAliceToBob.RK))
+	fmt.Printf("\tReEncryptionKey: %d\n", sizeOfBigInt(rkAliceToBob.RK))
 
 	msg := ecc.NewRandomPoint(pp.Curve)
 
@@ -218,8 +281,8 @@ func pre_bbs98() {
 	if err != nil {
 		mu.Fatalf("Encrypt failed: %v\n", err)
 	}
-	n = sizeofECCPoint(ct.C1)
-	n += sizeofECCPoint(ct.C2)
+	n = sizeOfECCPoint(ct.C1)
+	n += sizeOfECCPoint(ct.C2)
 	fmt.Printf("\tCiphertext: %d\n", n)
 }
 
@@ -353,6 +416,8 @@ func pre_lv08() {
 }
 
 func main() {
+	gc_bhkr13()
+
 	aggsig_bgls03()
 
 	multisig_b03()
