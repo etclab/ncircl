@@ -684,6 +684,106 @@ func (ct *Ciphertext) String() string {
 	return sb.String()
 }
 
+func (ct *Ciphertext) MarshalBinary() ([]byte, error) {
+	g1size := bls.G1SizeCompressed
+	totalSize := 4 + 2*g1size + len(ct.C2s)*g1size
+
+	buf := make([]byte, totalSize)
+
+	binary.BigEndian.PutUint32(buf[0:4], uint32(len(ct.C2s)))
+	offset := 4
+
+	copy(buf[offset:offset+g1size], ct.G.BytesCompressed())
+	offset += g1size
+
+	copy(buf[offset:offset+g1size], ct.H.BytesCompressed())
+	offset += g1size
+
+	for i, c2 := range ct.C2s {
+		if c2 == nil {
+			return nil, fmt.Errorf("C2s[%d] is nil", i)
+		}
+		if len(c2.BytesCompressed()) != g1size {
+			return nil, fmt.Errorf("C2s[%d] has unexpected size: %d bytes", i, len(c2.BytesCompressed()))
+		}
+		copy(buf[offset:offset+g1size], c2.BytesCompressed())
+		offset += g1size
+	}
+	if offset != len(buf) {
+		return nil, fmt.Errorf("data length mismatch: expected %d bytes, got %d bytes", len(buf), offset)
+	}
+	return buf, nil
+}
+
+func (ct *Ciphertext) UnmarshalBinary(data []byte) error {
+	g1size := bls.G1SizeCompressed
+
+	if len(data) < 4+2*g1size {
+		return fmt.Errorf("data too short: %d bytes", len(data))
+	}
+
+	numC2s := int(binary.BigEndian.Uint32(data[0:4]))
+	requiredSize := 4 + 2*g1size + numC2s*g1size
+	if len(data) < requiredSize {
+		return fmt.Errorf("data too short for C2s: %d bytes", requiredSize)
+	}
+
+	ct.C2s = make([]*bls.G1, numC2s)
+	offset := 4
+
+	ct.G = new(bls.G1)
+	if err := ct.G.SetBytes(data[offset : offset+g1size]); err != nil {
+		return fmt.Errorf("failed to unmarshal G: %w", err)
+	}
+	offset += g1size
+
+	ct.H = new(bls.G1)
+	if err := ct.H.SetBytes(data[offset : offset+g1size]); err != nil {
+		return fmt.Errorf("failed to unmarshal H: %w", err)
+	}
+	offset += g1size
+
+	for i := 0; i < numC2s; i++ {
+		if offset+g1size > len(data) {
+			return fmt.Errorf("data too short for C2s[%d]", i)
+		}
+		ct.C2s[i] = new(bls.G1)
+		if err := ct.C2s[i].SetBytes(data[offset : offset+g1size]); err != nil {
+			return fmt.Errorf("failed to unmarshal C2s[%d]: %w", i, err)
+		}
+		offset += g1size
+	}
+
+	if offset != len(data) {
+		return fmt.Errorf("data length mismatch: expected %d bytes, got %d bytes", len(data), offset)
+	}
+
+	return nil
+
+}
+
+func (ct *Ciphertext) IsEqual(other *Ciphertext) bool {
+	if ct == nil || other == nil {
+		return ct == other
+	}
+
+	if !ct.G.IsEqual(other.G) || !ct.H.IsEqual(other.H) {
+		return false
+	}
+
+	if len(ct.C2s) != len(other.C2s) {
+		return false
+	}
+
+	for i := range ct.C2s {
+		if !ct.C2s[i].IsEqual(other.C2s[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Enc, ase_homosig_enc
 // Note that len(plaintext) = 2 * numAttrs
 // the caller usually passes nil for attrs

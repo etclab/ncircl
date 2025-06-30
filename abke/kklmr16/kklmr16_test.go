@@ -81,6 +81,40 @@ func TestMarshalMasterPublicKey(t *testing.T) {
 	}
 }
 
+func TestMarshalCipherText(t *testing.T) {
+	for numAttrs := 1; numAttrs < 1025; numAttrs *= 2 {
+		t.Run(fmt.Sprintf("numAttrs:%d", numAttrs), func(t *testing.T) {
+			pp := NewPublicParams(numAttrs)
+			ca := NewCertificateAuthority(pp)
+
+			attrs := boolx.Random(numAttrs)
+			pk, _ := ca.GenCert(attrs)
+
+			// generate random plaintext
+			pt := make([]*bls.G1, pp.NumAttrs*2)
+			for i := 0; i < len(pt); i++ {
+				pt[i] = blspairing.NewRandomG1()
+			}
+
+			ct := Encrypt(pp, pk, nil, pt)
+
+			data, err := ct.MarshalBinary()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ct2 := new(Ciphertext)
+			if err := ct2.UnmarshalBinary(data); err != nil {
+				t.Fatal(err)
+			}
+
+			if !ct.IsEqual(ct2) {
+				t.Fatal("ct.IsEqual failed")
+			}
+		})
+	}
+}
+
 func TestPublicKey_Verify(t *testing.T) {
 	for numAttrs := 1; numAttrs < 1025; numAttrs *= 2 {
 		t.Run(fmt.Sprintf("numAttrs:%d", numAttrs), func(t *testing.T) {
