@@ -93,3 +93,32 @@ func SllEpi64(x Uint128, n int) Uint128 {
 	z.L = x.L << n
 	return z
 }
+
+// Serialize uint128 slice to bytes
+func SerializeSlice(values []Uint128) []byte {
+	buf := make([]byte, len(values)*SizeOfUint128)
+	for i, val := range values {
+		copy(buf[i*SizeOfUint128:(i+1)*SizeOfUint128], val.Bytes())
+	}
+	return buf
+}
+
+// Deserialize bytes to uint128 slice
+func DeserializeSlice(data []byte) ([]Uint128, error) {
+	if len(data)%SizeOfUint128 != 0 {
+		return nil, errors.New("invalid data length for uint128 slice")
+	}
+
+	count := len(data) / SizeOfUint128
+	values := make([]Uint128, count)
+
+	for i := 0; i < count; i++ {
+		start := i * SizeOfUint128
+		end := start + SizeOfUint128
+		err := values[i].SetBytes(data[start:end])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return values, nil
+}
