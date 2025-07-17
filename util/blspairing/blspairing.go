@@ -4,8 +4,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"io"
+	"math/big"
 
 	bls "github.com/cloudflare/circl/ecc/bls12381"
+	"github.com/cloudflare/circl/ecc/bls12381/ff"
 	"github.com/etclab/mu"
 	"golang.org/x/crypto/hkdf"
 )
@@ -44,6 +46,23 @@ func ScalarToBytes(k *bls.Scalar) []byte {
 		mu.Panicf("Scalar.MarshalBinary failed: %v", err)
 	}
 	return buf
+}
+
+func HashBytesToScalar(msg []byte) *bls.Scalar {
+	h := sha256.Sum256(msg)
+
+	z := new(big.Int)
+	z.SetBytes(h[:])
+
+	r := new(big.Int)
+	r.SetBytes(ff.ScalarOrder())
+
+	z.Rem(z, r)
+
+	k := new(bls.Scalar)
+	k.SetBytes(z.Bytes())
+
+	return k
 }
 
 func NewG1Identity() *bls.G1 {
