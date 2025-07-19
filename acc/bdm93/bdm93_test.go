@@ -57,6 +57,64 @@ func TestWitness_Update(t *testing.T) {
 	}
 }
 
+func TestShamirTrick(t *testing.T) {
+	mgr := NewAccumulatorManager(rsaBitSize)
+
+	w1 := mgr.Add(bytesx.Random(itemSize))
+	w2 := mgr.Add(bytesx.Random(itemSize))
+	w1.Update(w2.X)
+
+	w12, err := ShamirTrick(w1, w2)
+	if err != nil {
+		t.Fatalf("ShamirTrick failed: %v", err)
+	}
+
+	valid := mgr.VerifyWitness(w12)
+	if !valid {
+		t.Fatalf("expected VerifyWitness on a aggregated witness to return true, but got %v", valid)
+	}
+}
+
+func TestAggregateWitnesses(t *testing.T) {
+	mgr := NewAccumulatorManager(rsaBitSize)
+
+	witnesses := make([]*Witness, 16)
+	for i := 0; i < len(witnesses); i++ {
+		w := mgr.Add(bytesx.Random(itemSize))
+		for j := 0; j < i; j++ {
+			witnesses[j].Update(w.X)
+		}
+		witnesses[i] = w
+	}
+
+	aggWit, err := AggregateWitnesses(witnesses[6:11])
+	if err != nil {
+		t.Fatalf("AggregateWitnesses failed: %v", err)
+	}
+
+	valid := mgr.VerifyWitness(aggWit)
+	if !valid {
+		t.Fatalf("expected VerifyWitness on a aggregated witness to return true, but got %v", valid)
+	}
+}
+
+func TestVerifyNIPoE(t *testing.T) {
+	mgr := NewAccumulatorManager(rsaBitSize)
+
+	w := mgr.Add(bytesx.Random(itemSize))
+	valid := mgr.VerifyWitness(w)
+	if !valid {
+		t.Fatalf("expected VerifyWitness to return true, but got %v", valid)
+	}
+
+	proof := NIPoE(w)
+
+	valid = VerifyNIPoE(mgr.AccValue, w, proof)
+	if !valid {
+		t.Fatalf("expected VerifyNIPoE to return true, but got %v", valid)
+	}
+}
+
 func BenchmarkHashToPrime(b *testing.B) {
 	data := bytesx.Random(itemSize)
 	for b.Loop() {

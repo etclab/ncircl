@@ -3,6 +3,8 @@ package bdm93
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"errors"
 	"math/big"
 
 	"github.com/etclab/mu"
@@ -10,6 +12,14 @@ import (
 )
 
 var bigOne = big.NewInt(1)
+
+var (
+	ErrShamirTrick = errors.New("bdm93: ShamirTrick: invalid inputs")
+)
+
+func bigIntClone(x *big.Int) *big.Int {
+	return new(big.Int).Set(x)
+}
 
 func HashToPrime(data []byte) *big.Int {
 	// Unclear if this is a good hash function.
@@ -54,10 +64,18 @@ type Witness struct {
 	N *big.Int
 }
 
+func (w *Witness) Clone() *Witness {
+	return &Witness{
+		X: bigIntClone(w.X),
+		A: bigIntClone(w.A),
+		N: bigIntClone(w.N),
+	}
+}
+
 func (mgr *AccumulatorManager) Add(item []byte) *Witness {
 	prime := HashToPrime(item)
 	w := new(Witness)
-	w.A = new(big.Int).Set(mgr.AccValue) // clone the current AccValue
+	w.A = bigIntClone(mgr.AccValue)
 	w.N = mgr.SK.N
 
 	// raise accumulator to the exponent; take value mod N
@@ -88,4 +106,86 @@ func (mgr *AccumulatorManager) VerifyWitness(w *Witness) bool {
 
 func (w *Witness) Update(update *big.Int) {
 	w.A.Exp(w.A, update, w.N)
+}
+
+func ShamirTrick(w1, w2 *Witness) (*Witness, error) {
+	w1tox := new(big.Int).Exp(w1.A, w1.X, w1.N)
+	w2toy := new(big.Int).Exp(w2.A, w2.X, w2.N)
+	if w1tox.Cmp(w2toy) != 0 {
+		return nil, ErrShamirTrick
+	}
+
+	one := new(big.Int)
+	a := new(big.Int)
+	b := new(big.Int)
+	one.GCD(a, b, w1.X, w2.X)
+	one.Mod(one, w1.N)
+
+	if one.Cmp(bigOne) != 0 {
+		mu.BUG("ShamirTrick: x and y are not coprime")
+	}
+
+	w1tob := new(big.Int).Exp(w1.A, b, w1.N)
+	w2toa := new(big.Int).Exp(w2.A, a, w2.N)
+
+	prod := new(big.Int).Mul(w1tob, w2toa)
+	prod.Mod(prod, w1.N)
+
+	xy := new(big.Int).Mul(w1.X, w2.X)
+
+	aggWit := Witness{
+		X: xy,
+		A: prod,
+		N: bigIntClone(w1.N),
+	}
+
+	return &aggWit, nil
+}
+
+func AggregateWitnesses(witnesses []*Witness) (*Witness, error) {
+	var err error
+	agg := witnesses[0].Clone()
+	for _, w := range witnesses[1:] {
+		agg, err = ShamirTrick(agg, w)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return agg, nil
+}
+
+type PoE struct {
+	Prime *big.Int
+	Q     *big.Int
+}
+
+func NIPoE(w *Witness) *PoE {
+	p, err := rand.Prime(rand.Reader, 256)
+	if err != nil {
+		mu.Panicf("rand.Prime failed: %v", err)
+	}
+
+	h := sha256.Sum256(p.Bytes())
+	bigH := new(big.Int).SetBytes(h[:])
+
+	q := new(big.Int).Div(w.X, bigH)
+	Q := new(big.Int).Exp(w.A, q, w.N)
+
+	return &PoE{
+		Q:     Q,
+		Prime: p,
+	}
+}
+
+func VerifyNIPoE(accValue *big.Int, w *Witness, proof *PoE) bool {
+	h := sha256.Sum256(proof.Prime.Bytes())
+	bigH := new(big.Int).SetBytes(h[:])
+
+	r := new(big.Int).Mod(w.X, bigH)
+	a := new(big.Int).Exp(proof.Q, bigH, w.N)
+	b := new(big.Int).Exp(w.A, r, w.N)
+	got := new(big.Int).Mul(a, b)
+	got.Mod(got, w.N)
+
+	return accValue.Cmp(got) == 0
 }
