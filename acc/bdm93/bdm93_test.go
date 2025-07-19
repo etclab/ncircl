@@ -14,7 +14,7 @@ var (
 
 func TestAccumulatorManager_Add(t *testing.T) {
 	mgr := NewAccumulatorManager(rsaBitSize)
-	w := mgr.Add(bytesx.Random(itemSize))
+	w, _ := mgr.Add(bytesx.Random(itemSize))
 	valid := mgr.VerifyWitness(w)
 	if !valid {
 		t.Fatalf("expected VerifyWitness to return true, but got %v", valid)
@@ -23,8 +23,8 @@ func TestAccumulatorManager_Add(t *testing.T) {
 
 func TestStaleWitness(t *testing.T) {
 	mgr := NewAccumulatorManager(rsaBitSize)
-	w1 := mgr.Add(bytesx.Random(itemSize))
-	w2 := mgr.Add(bytesx.Random(itemSize))
+	w1, _ := mgr.Add(bytesx.Random(itemSize))
+	w2, _ := mgr.Add(bytesx.Random(itemSize))
 
 	valid := mgr.VerifyWitness(w2)
 	if !valid {
@@ -40,15 +40,15 @@ func TestStaleWitness(t *testing.T) {
 
 func TestWitness_Update(t *testing.T) {
 	mgr := NewAccumulatorManager(rsaBitSize)
-	w1 := mgr.Add(bytesx.Random(itemSize))
-	w2 := mgr.Add(bytesx.Random(itemSize))
+	w1, _ := mgr.Add(bytesx.Random(itemSize))
+	w2, upd2 := mgr.Add(bytesx.Random(itemSize))
 
 	valid := mgr.VerifyWitness(w2)
 	if !valid {
 		t.Fatalf("expected VerifyWitness to return true, but got %v", valid)
 	}
 
-	w1.Update(w2.X)
+	w1.Update(upd2)
 
 	// w1's witness is stale and needs to be updated
 	valid = mgr.VerifyWitness(w1)
@@ -57,14 +57,14 @@ func TestWitness_Update(t *testing.T) {
 	}
 }
 
-func TestShamirTrick(t *testing.T) {
+func Test_shamirTrick(t *testing.T) {
 	mgr := NewAccumulatorManager(rsaBitSize)
 
-	w1 := mgr.Add(bytesx.Random(itemSize))
-	w2 := mgr.Add(bytesx.Random(itemSize))
-	w1.Update(w2.X)
+	w1, _ := mgr.Add(bytesx.Random(itemSize))
+	w2, upd2 := mgr.Add(bytesx.Random(itemSize))
+	w1.Update(upd2)
 
-	w12, err := ShamirTrick(w1, w2)
+	w12, err := shamirTrick(w1, w2)
 	if err != nil {
 		t.Fatalf("ShamirTrick failed: %v", err)
 	}
@@ -80,9 +80,9 @@ func TestAggregateWitnesses(t *testing.T) {
 
 	witnesses := make([]*Witness, 16)
 	for i := 0; i < len(witnesses); i++ {
-		w := mgr.Add(bytesx.Random(itemSize))
+		w, upd := mgr.Add(bytesx.Random(itemSize))
 		for j := 0; j < i; j++ {
-			witnesses[j].Update(w.X)
+			witnesses[j].Update(upd)
 		}
 		witnesses[i] = w
 	}
@@ -101,7 +101,7 @@ func TestAggregateWitnesses(t *testing.T) {
 func TestVerifyNIPoE(t *testing.T) {
 	mgr := NewAccumulatorManager(rsaBitSize)
 
-	w := mgr.Add(bytesx.Random(itemSize))
+	w, _ := mgr.Add(bytesx.Random(itemSize))
 	valid := mgr.VerifyWitness(w)
 	if !valid {
 		t.Fatalf("expected VerifyWitness to return true, but got %v", valid)
@@ -145,7 +145,7 @@ func BenchmarkAccumulatorManager_Remove(b *testing.B) {
 
 func BenchmarkWitness_VerifyWitness(b *testing.B) {
 	mgr := NewAccumulatorManager(rsaBitSize)
-	w := mgr.Add(bytesx.Random(itemSize))
+	w, _ := mgr.Add(bytesx.Random(itemSize))
 	for b.Loop() {
 		valid := mgr.VerifyWitness(w)
 		if !valid {
@@ -158,17 +158,18 @@ func BenchmarkWitness_VerifyWitness(b *testing.B) {
 // the Remove exponent is far larger than the Add exponent.
 func BenchmarkWitness_Update(b *testing.B) {
 	var upd *big.Int
+
 	mgr := NewAccumulatorManager(rsaBitSize)
-	w1 := mgr.Add(bytesx.Random(itemSize))
-	w2Item := bytesx.Random(itemSize)
+	w1, _ := mgr.Add(bytesx.Random(itemSize))
+	item2 := bytesx.Random(itemSize)
+
 	i := 0
 	for b.Loop() {
 		b.StopTimer()
 		if i%2 == 0 {
-			w2 := mgr.Add(w2Item)
-			upd = w2.X
+			_, upd = mgr.Add(item2)
 		} else {
-			upd = mgr.Remove(w2Item)
+			upd = mgr.Remove(item2)
 		}
 		i += 1
 		b.StartTimer()

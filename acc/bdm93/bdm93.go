@@ -72,7 +72,10 @@ func (w *Witness) Clone() *Witness {
 	}
 }
 
-func (mgr *AccumulatorManager) Add(item []byte) *Witness {
+// Add adds an item to the accumulator.  It returns the witness for the
+// item added, and the update value for updating the witnesses for
+// any existing items in the accumulator.
+func (mgr *AccumulatorManager) Add(item []byte) (*Witness, *big.Int) {
 	prime := HashToPrime(item)
 	w := new(Witness)
 	w.A = bigIntClone(mgr.AccValue)
@@ -84,10 +87,11 @@ func (mgr *AccumulatorManager) Add(item []byte) *Witness {
 	w.X = x
 	mgr.AccValue.Exp(mgr.AccValue, x, mgr.SK.N)
 
-	return w
+	return w, w.X
 }
 
-// returns the update for the other witness
+// Remove removes an item from the accumulator.  It returns the update value
+// for updating the witnesses for any remaining itmes in the accumulator.
 func (mgr *AccumulatorManager) Remove(item []byte) *big.Int {
 	prime := HashToPrime(item)
 	x := new(big.Int)
@@ -97,6 +101,7 @@ func (mgr *AccumulatorManager) Remove(item []byte) *big.Int {
 	return xInv
 }
 
+// VerifyWitness verifies a witness against the current accumulator value.
 func (mgr *AccumulatorManager) VerifyWitness(w *Witness) bool {
 	//x := new(big.Int)
 	//x.Mod(w.Prime, mgr.Totient)
@@ -104,11 +109,16 @@ func (mgr *AccumulatorManager) VerifyWitness(w *Witness) bool {
 	return mgr.AccValue.Cmp(v) == 0
 }
 
+// Update updates a witness.  Witnesses need to be updated any time
+// an item is addded or removed from the accumulator.
 func (w *Witness) Update(update *big.Int) {
 	w.A.Exp(w.A, update, w.N)
 }
 
-func ShamirTrick(w1, w2 *Witness) (*Witness, error) {
+// shamirTrick is a trick that computes w^{xy} from w1^x,w2^y.
+// In the context of accumulators, it aggregates two witnesses into a single
+// witness for both values.
+func shamirTrick(w1, w2 *Witness) (*Witness, error) {
 	w1tox := new(big.Int).Exp(w1.A, w1.X, w1.N)
 	w2toy := new(big.Int).Exp(w2.A, w2.X, w2.N)
 	if w1tox.Cmp(w2toy) != 0 {
@@ -142,11 +152,13 @@ func ShamirTrick(w1, w2 *Witness) (*Witness, error) {
 	return &aggWit, nil
 }
 
+// AggregateWitnesses aggregates a list of witnesses into a single witness
+// for all of their respective values.
 func AggregateWitnesses(witnesses []*Witness) (*Witness, error) {
 	var err error
 	agg := witnesses[0].Clone()
 	for _, w := range witnesses[1:] {
-		agg, err = ShamirTrick(agg, w)
+		agg, err = shamirTrick(agg, w)
 		if err != nil {
 			return nil, err
 		}
