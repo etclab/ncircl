@@ -1,6 +1,7 @@
 package bdm93
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -8,13 +9,14 @@ import (
 )
 
 var (
-	itemSize   = 1024
-	rsaBitSize = 3096
+	defaultItemSize     = 1024
+	defaultRSABitSize   = 3096
+	defaultNumWitnesses = 128
 )
 
 func TestAccumulatorManager_Add(t *testing.T) {
-	mgr := NewAccumulatorManager(rsaBitSize)
-	w, _ := mgr.Add(bytesx.Random(itemSize))
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+	w, _ := mgr.Add(bytesx.Random(defaultItemSize))
 	valid := mgr.VerifyWitness(w)
 	if !valid {
 		t.Fatalf("expected VerifyWitness to return true, but got %v", valid)
@@ -22,9 +24,9 @@ func TestAccumulatorManager_Add(t *testing.T) {
 }
 
 func TestStaleWitness(t *testing.T) {
-	mgr := NewAccumulatorManager(rsaBitSize)
-	w1, _ := mgr.Add(bytesx.Random(itemSize))
-	w2, _ := mgr.Add(bytesx.Random(itemSize))
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+	w1, _ := mgr.Add(bytesx.Random(defaultItemSize))
+	w2, _ := mgr.Add(bytesx.Random(defaultItemSize))
 
 	valid := mgr.VerifyWitness(w2)
 	if !valid {
@@ -39,9 +41,9 @@ func TestStaleWitness(t *testing.T) {
 }
 
 func TestWitness_Update(t *testing.T) {
-	mgr := NewAccumulatorManager(rsaBitSize)
-	w1, _ := mgr.Add(bytesx.Random(itemSize))
-	w2, upd2 := mgr.Add(bytesx.Random(itemSize))
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+	w1, _ := mgr.Add(bytesx.Random(defaultItemSize))
+	w2, upd2 := mgr.Add(bytesx.Random(defaultItemSize))
 
 	valid := mgr.VerifyWitness(w2)
 	if !valid {
@@ -58,10 +60,10 @@ func TestWitness_Update(t *testing.T) {
 }
 
 func Test_shamirTrick(t *testing.T) {
-	mgr := NewAccumulatorManager(rsaBitSize)
+	mgr := NewAccumulatorManager(defaultRSABitSize)
 
-	w1, _ := mgr.Add(bytesx.Random(itemSize))
-	w2, upd2 := mgr.Add(bytesx.Random(itemSize))
+	w1, _ := mgr.Add(bytesx.Random(defaultItemSize))
+	w2, upd2 := mgr.Add(bytesx.Random(defaultItemSize))
 	w1.Update(upd2)
 
 	w12, err := shamirTrick(w1, w2)
@@ -76,11 +78,11 @@ func Test_shamirTrick(t *testing.T) {
 }
 
 func TestAggregateWitnesses(t *testing.T) {
-	mgr := NewAccumulatorManager(rsaBitSize)
+	mgr := NewAccumulatorManager(defaultRSABitSize)
 
 	witnesses := make([]*Witness, 16)
 	for i := 0; i < len(witnesses); i++ {
-		w, upd := mgr.Add(bytesx.Random(itemSize))
+		w, upd := mgr.Add(bytesx.Random(defaultItemSize))
 		for j := 0; j < i; j++ {
 			witnesses[j].Update(upd)
 		}
@@ -99,9 +101,9 @@ func TestAggregateWitnesses(t *testing.T) {
 }
 
 func TestVerifyNIPoE(t *testing.T) {
-	mgr := NewAccumulatorManager(rsaBitSize)
+	mgr := NewAccumulatorManager(defaultRSABitSize)
 
-	w, _ := mgr.Add(bytesx.Random(itemSize))
+	w, _ := mgr.Add(bytesx.Random(defaultItemSize))
 	valid := mgr.VerifyWitness(w)
 	if !valid {
 		t.Fatalf("expected VerifyWitness to return true, but got %v", valid)
@@ -116,25 +118,25 @@ func TestVerifyNIPoE(t *testing.T) {
 }
 
 func BenchmarkHashToPrime(b *testing.B) {
-	data := bytesx.Random(itemSize)
+	data := bytesx.Random(defaultItemSize)
 	for b.Loop() {
 		HashToPrime(data)
 	}
 }
 
 func BenchmarkAccumulatorManager_Add(b *testing.B) {
-	mgr := NewAccumulatorManager(rsaBitSize)
+	mgr := NewAccumulatorManager(defaultRSABitSize)
 	for b.Loop() {
 		b.StopTimer()
-		item := bytesx.Random(itemSize)
+		item := bytesx.Random(defaultItemSize)
 		b.StartTimer()
 		mgr.Add(item)
 	}
 }
 
 func BenchmarkAccumulatorManager_Remove(b *testing.B) {
-	mgr := NewAccumulatorManager(rsaBitSize)
-	item := bytesx.Random(itemSize)
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+	item := bytesx.Random(defaultItemSize)
 	for b.Loop() {
 		b.StopTimer()
 		mgr.Add(item)
@@ -144,13 +146,37 @@ func BenchmarkAccumulatorManager_Remove(b *testing.B) {
 }
 
 func BenchmarkWitness_VerifyWitness(b *testing.B) {
-	mgr := NewAccumulatorManager(rsaBitSize)
-	w, _ := mgr.Add(bytesx.Random(itemSize))
-	for b.Loop() {
-		valid := mgr.VerifyWitness(w)
-		if !valid {
-			b.Fatalf("expected VerifyWitness to return true, but got %v", valid)
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+
+	witnesses := make([]*Witness, defaultNumWitnesses)
+	for i := 0; i < len(witnesses); i++ {
+		w, upd := mgr.Add(bytesx.Random(defaultItemSize))
+		for j := 0; j < i; j++ {
+			witnesses[j].Update(upd)
 		}
+		witnesses[i] = w
+	}
+
+	for n := 1; n <= defaultNumWitnesses; n *= 2 {
+		b.Run(fmt.Sprintf("numAggregatedWitnesses:%d", n), func(b *testing.B) {
+			var w *Witness
+			var err error
+			if n > 1 {
+				w, err = AggregateWitnesses(witnesses[:n])
+				if err != nil {
+					b.Fatalf("AggregateWitnesses failed: %v", err)
+				}
+			} else {
+				w = witnesses[0]
+			}
+
+			for b.Loop() {
+				valid := mgr.VerifyWitness(w)
+				if !valid {
+					b.Fatal("witness failed verification")
+				}
+			}
+		})
 	}
 }
 
@@ -159,9 +185,9 @@ func BenchmarkWitness_VerifyWitness(b *testing.B) {
 func BenchmarkWitness_Update(b *testing.B) {
 	var upd *big.Int
 
-	mgr := NewAccumulatorManager(rsaBitSize)
-	w1, _ := mgr.Add(bytesx.Random(itemSize))
-	item2 := bytesx.Random(itemSize)
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+	w1, _ := mgr.Add(bytesx.Random(defaultItemSize))
+	item2 := bytesx.Random(defaultItemSize)
 
 	i := 0
 	for b.Loop() {
@@ -175,5 +201,98 @@ func BenchmarkWitness_Update(b *testing.B) {
 		b.StartTimer()
 
 		w1.Update(upd)
+	}
+}
+
+func BenchmarkAggregateWitnesses(b *testing.B) {
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+
+	witnesses := make([]*Witness, defaultNumWitnesses)
+	for i := 0; i < len(witnesses); i++ {
+		w, upd := mgr.Add(bytesx.Random(defaultItemSize))
+		for j := 0; j < i; j++ {
+			witnesses[j].Update(upd)
+		}
+		witnesses[i] = w
+	}
+
+	for n := 2; n <= defaultNumWitnesses; n *= 2 {
+		b.Run(fmt.Sprintf("numWitnesses:%d", n), func(b *testing.B) {
+			for b.Loop() {
+				_, err := AggregateWitnesses(witnesses[:n])
+				if err != nil {
+					b.Fatalf("AggregateWitnesses failed: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkNIPoE(b *testing.B) {
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+
+	witnesses := make([]*Witness, defaultNumWitnesses)
+	for i := 0; i < len(witnesses); i++ {
+		w, upd := mgr.Add(bytesx.Random(defaultItemSize))
+		for j := 0; j < i; j++ {
+			witnesses[j].Update(upd)
+		}
+		witnesses[i] = w
+	}
+
+	for n := 1; n <= defaultNumWitnesses; n *= 2 {
+		b.Run(fmt.Sprintf("numAggregatedWitnesses:%d", n), func(b *testing.B) {
+			var w *Witness
+			var err error
+			if n > 1 {
+				w, err = AggregateWitnesses(witnesses[:n])
+				if err != nil {
+					b.Fatalf("AggregateWitnesses failed: %v", err)
+				}
+			} else {
+				w = witnesses[0]
+			}
+
+			for b.Loop() {
+				_ = NIPoE(w)
+			}
+		})
+	}
+}
+
+func BenchmarkVerifyNIPoE(b *testing.B) {
+	mgr := NewAccumulatorManager(defaultRSABitSize)
+
+	witnesses := make([]*Witness, defaultNumWitnesses)
+	for i := 0; i < len(witnesses); i++ {
+		w, upd := mgr.Add(bytesx.Random(defaultItemSize))
+		for j := 0; j < i; j++ {
+			witnesses[j].Update(upd)
+		}
+		witnesses[i] = w
+	}
+
+	for n := 1; n <= defaultNumWitnesses; n *= 2 {
+		b.Run(fmt.Sprintf("numAggregatedWitnesses:%d", n), func(b *testing.B) {
+			var w *Witness
+			var err error
+			if n > 1 {
+				w, err = AggregateWitnesses(witnesses[:n])
+				if err != nil {
+					b.Fatalf("AggregateWitnesses failed: %v", err)
+				}
+			} else {
+				w = witnesses[0]
+			}
+
+			proof := NIPoE(w)
+
+			for b.Loop() {
+				valid := VerifyNIPoE(mgr.AccValue, w, proof)
+				if !valid {
+					b.Fatal("VerifyNIPoE returned false")
+				}
+			}
+		})
 	}
 }
