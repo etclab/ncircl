@@ -14,6 +14,33 @@ var (
 	defaultNumWitnesses = 128
 )
 
+func TestHashtoPrime(t *testing.T) {
+	preImage := bytesx.Random(defaultItemSize)
+
+	x := HashToPrime(preImage)
+	if !x.ProbablyPrime(10) {
+		t.Error("HashToPrime returned a non-prime number")
+	}
+	if x.Cmp(bigTwo) == 0 {
+		t.Error("HashToPrime returned an even prime (2)")
+	}
+
+	y := HashToPrime(preImage)
+	if !y.ProbablyPrime(10) {
+		t.Error("HashToPrime returned a non-prime number")
+	}
+	if !y.ProbablyPrime(10) {
+		t.Error("HashToPrime returned a non-prime number")
+	}
+	if y.Cmp(bigTwo) == 0 {
+		t.Error("HashToPrime returned an even prime (2)")
+	}
+
+	if x.Cmp(y) != 0 {
+		t.Error("HashToPrime returned different primes for the same pre-image")
+	}
+}
+
 func TestAccumulatorManager_Add(t *testing.T) {
 	mgr := NewAccumulatorManager(defaultRSABitSize)
 	w, _ := mgr.Add(bytesx.Random(defaultItemSize))

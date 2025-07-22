@@ -8,12 +8,12 @@ import (
 	"math/big"
 
 	"github.com/etclab/mu"
-	"golang.org/x/crypto/sha3"
 )
 
-var bigOne = big.NewInt(1)
-
 var (
+	bigOne = big.NewInt(1)
+	bigTwo = big.NewInt(2)
+
 	ErrShamirTrick = errors.New("bdm93: ShamirTrick: invalid inputs")
 )
 
@@ -22,14 +22,27 @@ func bigIntClone(x *big.Int) *big.Int {
 }
 
 func HashToPrime(data []byte) *big.Int {
-	// Unclear if this is a good hash function.
-	h := sha3.NewShake256()
-	h.Write(data)
-	p, err := rand.Prime(h, 256)
-	if err != nil {
-		mu.Panicf("rand.Prime failed: %v", err)
+	h := sha256.Sum256(data)
+	x := new(big.Int).SetBytes(h[:])
+	// make sure x is odd
+	if x.Bit(0) == 0 {
+		x.Add(x, bigOne)
 	}
-	return p
+
+	// Keep looping until find an odd prime
+	//
+	// With an input of 10, ProbablyPrime has only ~0.0001% chance of a false
+	// positive (saying that a non-prime is prime).  If x is prime,
+	// ProbablyPrime always returns true.
+	for !x.ProbablyPrime(10) || x.Cmp(bigTwo) == 0 {
+		h := sha256.Sum256(x.Bytes())
+		x.SetBytes(h[:])
+		// make sure x is odd
+		if x.Bit(0) == 0 {
+			x.Add(x, bigOne)
+		}
+	}
+	return x
 }
 
 type AccumulatorManager struct {
