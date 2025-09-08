@@ -20,23 +20,23 @@ var (
 func (gc *GarbledCircuit) Marshal() ([]byte, error) {
 	// Calculate total size needed
 	size := 0
-	size += 4 // Type (int32)
-	size += 4 // NumInputs (int32)
-	size += 4 // NumWires (int32)
-	size += 4 // NumXors (int32)
-	size += 4 // len(Gates) (int32)
-	size += len(gc.Gates) * 16 // Gates (each gate: 4 ints = 16 bytes)
-	size += 4 // len(Table) (int32)
-	size += len(gc.Table) * 16 // Table (each uint128 = 16 bytes)
-	size += 4 // len(Wires) (int32)
-	size += len(gc.Wires) * 16 // Wires (each uint128 = 16 bytes)
-	size += 4 // len(Outputs) (int32)
-	size += len(gc.Outputs) * 4 // Outputs (each int = 4 bytes)
-	size += 4 // len(OutputPerms) (int32)
+	size += 4                             // Type (int32)
+	size += 4                             // NumInputs (int32)
+	size += 4                             // NumWires (int32)
+	size += 4                             // NumXors (int32)
+	size += 4                             // len(Gates) (int32)
+	size += len(gc.Gates) * 16            // Gates (each gate: 4 ints = 16 bytes)
+	size += 4                             // len(Table) (int32)
+	size += len(gc.Table) * 16            // Table (each uint128 = 16 bytes)
+	size += 4                             // len(Wires) (int32)
+	size += len(gc.Wires) * 16            // Wires (each uint128 = 16 bytes)
+	size += 4                             // len(Outputs) (int32)
+	size += len(gc.Outputs) * 4           // Outputs (each int = 4 bytes)
+	size += 4                             // len(OutputPerms) (int32)
 	size += (len(gc.OutputPerms) + 7) / 8 // OutputPerms (packed bits)
-	size += 16 // FixedLabel (uint128 = 16 bytes)
-	size += 16 // GlobalKey (uint128 = 16 bytes)
-	size += 4 // WireIndex (int32)
+	size += 16                            // FixedLabel (uint128 = 16 bytes)
+	size += 16                            // GlobalKey (uint128 = 16 bytes)
+	size += 4                             // WireIndex (int32)
 
 	buf := make([]byte, size)
 	offset := 0
@@ -296,13 +296,13 @@ func (gc *GarbledCircuit) InitializeRuntimeState(randAESKey []byte) error {
 	if randAESKey == nil {
 		randAESKey = bytesx.Random(16)
 	}
-	
+
 	var err error
 	gc.randAESECB, err = aesx.NewECB(randAESKey)
 	if err != nil {
 		return err
 	}
-	
+
 	gc.currentRandIndex = 0
 	return nil
 }

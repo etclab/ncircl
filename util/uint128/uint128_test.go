@@ -143,7 +143,7 @@ func TestDeserializeSlice(t *testing.T) {
 // Test round-trip serialization
 func TestRoundTripSerialization(t *testing.T) {
 	testCases := [][]Uint128{
-		{},               // empty slice
+		{},             // empty slice
 		{{H: 0, L: 0}}, // single zero
 		{{H: 0xFFFFFFFFFFFFFFFF, L: 0xFFFFFFFFFFFFFFFF}}, // max value
 		{

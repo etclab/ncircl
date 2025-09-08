@@ -326,8 +326,8 @@ func BenchmarkVerifyNIPoE(b *testing.B) {
 }
 
 func BenchmarkSHA256Baseline(b *testing.B) {
-    // This benchmark simply provides a relative baseline for comparing the
-    // performance of the accumulator against a traditional hash function.
+	// This benchmark simply provides a relative baseline for comparing the
+	// performance of the accumulator against a traditional hash function.
 	preImage := bytesx.Random(defaultItemSize)
 	for b.Loop() {
 		_ = sha256.Sum256(preImage)

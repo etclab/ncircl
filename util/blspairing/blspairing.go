@@ -100,6 +100,17 @@ func NewG2Identity() *bls.G2 {
 	return g
 }
 
+func NewRandomG2() *bls.G2 {
+	g := new(bls.G2)
+	input := make([]byte, 128)
+	_, err := rand.Read(input)
+	if err != nil {
+		mu.Fatalf("rand.Read failed to generate %d random bytes", len(input))
+	}
+	g.Hash(input, nil)
+	return g
+}
+
 func CloneG2(g *bls.G2) *bls.G2 {
 	a := new(bls.G2)
 	a.SetBytes(g.Bytes())
