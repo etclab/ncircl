@@ -178,9 +178,15 @@ func Encrypt(pp *PublicParams, id *ID, m *bls.Gt) (*Ciphertext, error) {
 	}, nil
 }
 
-/*
+func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) *bls.Gt {
+	num := bls.Pair(sk.A1, ct.C)
 
-func Decrypt() {
+	denom := bls.Pair(ct.B, sk.A0)
+	denom.Inv(denom)
 
+	m := new(bls.Gt)
+	m.Mul(num, denom)
+	m.Mul(m, ct.A)
+
+	return m
 }
-*/
