@@ -226,3 +226,40 @@ func KeyDer(pp *PublicParams, parentSk *PrivateKey, childPattern *Pattern) (*Pri
 		Pattern: childPattern, /* TODO: clone this? */
 	}, nil
 }
+
+type Ciphertext struct {
+	X *bls.Gt
+	Y *bls.G2
+	Z *bls.G1
+}
+
+func Encrypt(pp *PublicParams, pattern *Pattern, m *bls.Gt) (*Ciphertext, error) {
+	if pattern.Depth() != pp.MaxDepth {
+		return nil, ErrPatternInvalidDepth
+	}
+
+	s := blspairing.NewRandomScalar()
+
+	X := bls.Pair(pp.G2, pp.G1)
+	X.Exp(X, s)
+	X.Mul(X, m)
+
+	Y := new(bls.G2)
+	Y.ScalarMult(s, pp.G)
+
+	Z := blspairing.NewG1Identity()
+	var tmp bls.G1
+	fixed := pattern.FixedIndices()
+	for _, i := range fixed {
+		tmp.ScalarMult(pattern.Ps[i], pp.Hs[i])
+		Z.Add(Z, &tmp)
+	}
+	Z.Add(Z, pp.G3)
+	Z.ScalarMult(s, Z)
+
+	return &Ciphertext{
+		X: X,
+		Y: Y,
+		Z: Z,
+	}, nil
+}
