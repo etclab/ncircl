@@ -81,10 +81,8 @@ func NewPatternFromStrings(pp *PublicParams, components []string) (*Pattern, err
 	}
 
 	byteComponents := make([][]byte, pp.MaxDepth)
-	for i := 0; i < len(byteComponents); i++ {
-		if components[i] == "" {
-			byteComponents[i] = nil
-		} else {
+	for i := 0; i < len(components); i++ {
+		if components[i] != "" {
 			byteComponents[i] = []byte(components[i])
 		}
 	}
@@ -97,9 +95,21 @@ func (p *Pattern) Depth() int {
 }
 
 func (p *Pattern) Matches(other *Pattern) bool {
-	// TODO
-	return true
+	for i := 0; i < len(p.Ps); i++ {
+		if p.Ps[i] == nil {
+			continue
+		}
 
+		if other.Ps[i] == nil {
+			return false
+		}
+
+		if p.Ps[i].IsEqual(other.Ps[i]) == 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (p *Pattern) FixedIndices() []int {
@@ -185,7 +195,9 @@ func KeyDer(pp *PublicParams, parentSk *PrivateKey, childPattern *Pattern) (*Pri
 		return nil, ErrPatternInvalidDepth
 	}
 
-	// TODO: check that childPattern matches parent's
+	if !parentSk.Pattern.Matches(childPattern) {
+		return nil, ErrPatternDoesNotMatch
+	}
 
 	t := blspairing.NewRandomScalar()
 
@@ -262,4 +274,16 @@ func Encrypt(pp *PublicParams, pattern *Pattern, m *bls.Gt) (*Ciphertext, error)
 		Y: Y,
 		Z: Z,
 	}, nil
+}
+
+func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) *bls.Gt {
+	a := bls.Pair(ct.Z, sk.A2)
+	b := bls.Pair(sk.A1, ct.Y)
+	b.Inv(b)
+
+	m := new(bls.Gt)
+	m.Mul(ct.X, a)
+	m.Mul(m, b)
+
+	return m
 }
