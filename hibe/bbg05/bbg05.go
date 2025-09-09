@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	ErrIdExceedsMaxDepth = errors.New("ID exceeds maximum depth")
+	ErrIdExceedsMaxDepth = errors.New("Id exceeds maximum depth")
+	ErrIdNotChild        = errors.New("Id is not a valid child of parent Id")
 )
 
 type PublicParams struct {
@@ -51,15 +52,15 @@ func Setup(maxDepth int) (*PublicParams, *MasterKey) {
 	return pp, msk
 }
 
-type ID struct {
+type Id struct {
 	Is []*bls.Scalar
 }
 
-func NewID(pp *PublicParams, components [][]byte) (*ID, error) {
+func NewId(pp *PublicParams, components [][]byte) (*Id, error) {
 	if len(components) > pp.MaxDepth {
 		return nil, ErrIdExceedsMaxDepth
 	}
-	id := new(ID)
+	id := new(Id)
 	id.Is = make([]*bls.Scalar, len(components))
 	for i := 0; i < len(components); i++ {
 		id.Is[i] = blspairing.HashBytesToScalar(components[i])
@@ -68,15 +69,63 @@ func NewID(pp *PublicParams, components [][]byte) (*ID, error) {
 	return id, nil
 }
 
+func NewIdFromStrings(pp *PublicParams, components []string) (*Id, error) {
+	if len(components) > pp.MaxDepth {
+		return nil, ErrIdExceedsMaxDepth
+	}
+
+	byteComponents := make([][]byte, len(components))
+	for i := 0; i < len(byteComponents); i++ {
+		byteComponents[i] = []byte(components[i])
+	}
+
+	return NewId(pp, byteComponents)
+}
+
+func (id *Id) Depth() int {
+	return len(id.Is)
+}
+
+func (id *Id) IsParentOf(childId *Id) bool {
+	if id.Depth() != (childId.Depth() - 1) {
+		return false
+	}
+
+	for i := 0; i < len(id.Is); i++ {
+		if id.Is[i].IsEqual(childId.Is[i]) == 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (id *Id) IsChildOf(parentId *Id) bool {
+	if id.Depth() != (parentId.Depth() + 1) {
+		return false
+	}
+
+	for i := 0; i < len(parentId.Is); i++ {
+		if id.Is[i].IsEqual(parentId.Is[i]) == 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
 type PrivateKey struct {
 	A0 *bls.G2
 	A1 *bls.G1
 	Bs []*bls.G2
-	Id *ID
+	Id *Id
 }
 
-func KeyGen(pp *PublicParams, msk *MasterKey, id *ID) (*PrivateKey, error) {
-	/* TODO: make sure ID is not beyond max depth */
+func KeyGen(pp *PublicParams, msk *MasterKey, id *Id) (*PrivateKey, error) {
+	if id.Depth() > pp.MaxDepth {
+		return nil, ErrIdExceedsMaxDepth
+	}
+
 	r := blspairing.NewRandomScalar()
 
 	agg := blspairing.NewG2Identity()
@@ -108,9 +157,14 @@ func KeyGen(pp *PublicParams, msk *MasterKey, id *ID) (*PrivateKey, error) {
 	}, nil
 }
 
-func KeyDer(pp *PublicParams, parentSk *PrivateKey, childId *ID) (*PrivateKey, error) {
-	/* TODO: make sure ID is not beyond max depth */
-	// TODO: make sure childId is a child of parentSk's id
+func KeyDer(pp *PublicParams, parentSk *PrivateKey, childId *Id) (*PrivateKey, error) {
+	if childId.Depth() > pp.MaxDepth {
+		return nil, ErrIdExceedsMaxDepth
+	}
+	if !childId.IsChildOf(parentSk.Id) {
+		return nil, ErrIdNotChild
+	}
+
 	t := blspairing.NewRandomScalar()
 
 	var tmp bls.G2
@@ -152,17 +206,20 @@ type Ciphertext struct {
 	C *bls.G2
 }
 
-func Encrypt(pp *PublicParams, id *ID, m *bls.Gt) (*Ciphertext, error) {
-	/* TODO: make sure ID is not beyond max depth */
+func Encrypt(pp *PublicParams, id *Id, m *bls.Gt) (*Ciphertext, error) {
+	if id.Depth() > pp.MaxDepth {
+		return nil, ErrIdExceedsMaxDepth
+	}
 
 	s := blspairing.NewRandomScalar()
 	A := bls.Pair(pp.G1, pp.G2)
 	A.Exp(A, s)
+	A.Mul(A, m)
 
 	B := new(bls.G1)
 	B.ScalarMult(s, pp.G)
 
-	C := new(bls.G2)
+	C := blspairing.NewG2Identity()
 	var tmp bls.G2
 	for i := 0; i < len(id.Is); i++ {
 		tmp.ScalarMult(id.Is[i], pp.Hs[i])
