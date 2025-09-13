@@ -39,7 +39,7 @@ type MasterSecretKey struct {
 	S *bls.Scalar
 }
 
-func Setup() (*PublicParams, *MasterSecretKey) {
+func Setup() (*MasterSecretKey, *PublicParams) {
 	msk := new(MasterSecretKey)
 	msk.R = blspairing.NewRandomScalar()
 	msk.S = blspairing.NewRandomScalar()
@@ -50,14 +50,14 @@ func Setup() (*PublicParams, *MasterSecretKey) {
 	pp.P0 = new(bls.G1)
 	pp.P0.ScalarMult(msk.R, pp.P)
 
-	return pp, msk
+	return msk, pp
 }
 
 type EncryptionKey struct {
 	EK *bls.G1
 }
 
-func SkGen(msk *MasterSecretKey, id []byte) *EncryptionKey {
+func SkGen(_ *PublicParams, msk *MasterSecretKey, id []byte) *EncryptionKey {
 	ek := new(EncryptionKey)
 	h := blspairing.HashBytesToG1(id, nil)
 	ek.EK = new(bls.G1)
@@ -71,7 +71,7 @@ type DecryptionKey struct {
 	DK3 *bls.G2
 }
 
-func RkGen(msk *MasterSecretKey, id []byte) *DecryptionKey {
+func RkGen(_ *PublicParams, msk *MasterSecretKey, id []byte) *DecryptionKey {
 	dk := new(DecryptionKey)
 
 	h := blspairing.HashBytesToG2(id, nil)
@@ -112,13 +112,14 @@ func Encrypt(pp *PublicParams, ek *EncryptionKey, rcvId []byte, msg []byte) *Cip
 
 	n := len(msg)
 	ct.V = make([]byte, n)
+	copy(ct.V, msg)
 	bytesx.Xor(ct.V, HT(kR, n))
 	bytesx.Xor(ct.V, HT(kS, n))
 
 	return ct
 }
 
-func Decrypt(pp *PublicParams, dk *DecryptionKey, sndId []byte, ct *Ciphertext) []byte {
+func Decrypt(_ *PublicParams, dk *DecryptionKey, sndId []byte, ct *Ciphertext) []byte {
 	kR := bls.Pair(ct.U, dk.DK1)
 
 	h := blspairing.HashBytesToG1(sndId, nil)
