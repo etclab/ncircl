@@ -135,8 +135,8 @@ func (p *Pattern) FreeIndices() []int {
 func intersectIndices(a, b []int) []int {
 	// FIXME: simple, but inefficient method
 	var u []int
-	for _, i := range a {
-		for _, j := range b {
+	for i := range a {
+		for j := range b {
 			if a[i] == b[j] {
 				u = append(u, a[i])
 			}
