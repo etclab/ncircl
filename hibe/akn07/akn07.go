@@ -15,12 +15,12 @@ var (
 
 // This is also called the master public key (mpk)
 type PublicParams struct {
-	MaxDepth int
+	MaxDepth int // this includes the signature slot
 	G        *bls.G2
 	G1       *bls.G2
 	G2       *bls.G1
 	G3       *bls.G1
-	Hs       []*bls.G1 // len(Hs) == MaxDepth
+	Hs       []*bls.G1 // len(Hs) == MaxDepth; the last slot is for signatures
 }
 
 type MasterKey struct {
@@ -90,6 +90,15 @@ func NewPatternFromStrings(pp *PublicParams, components []string) (*Pattern, err
 	return NewPattern(pp, byteComponents)
 }
 
+func (p *Pattern) Clone() *Pattern {
+	newP := new(Pattern)
+	newP.Ps = make([]*bls.Scalar, p.Depth())
+	for i := range newP.Ps {
+		newP.Ps[i] = blspairing.CloneScalar(p.Ps[i])
+	}
+	return newP
+}
+
 func (p *Pattern) Depth() int {
 	return len(p.Ps)
 }
@@ -146,8 +155,8 @@ func intersectIndices(a, b []int) []int {
 }
 
 type PrivateKey struct {
-	A1      *bls.G1
-	A2      *bls.G2
+	K0      *bls.G1
+	K1      *bls.G2
 	Bs      []*bls.G1 // len MaxDepth
 	Pattern *Pattern
 }
@@ -168,11 +177,11 @@ func KeyGen(pp *PublicParams, msk *MasterKey, pattern *Pattern) (*PrivateKey, er
 	}
 	agg.Add(agg, pp.G3)
 	agg.ScalarMult(r, agg)
-	A1 := new(bls.G1)
-	A1.Add(msk.G2toAlpha, agg)
+	K0 := new(bls.G1)
+	K0.Add(msk.G2toAlpha, agg)
 
-	A2 := new(bls.G2)
-	A2.ScalarMult(r, pp.G)
+	K1 := new(bls.G2)
+	K1.ScalarMult(r, pp.G)
 
 	free := pattern.FreeIndices()
 	Bs := make([]*bls.G1, pp.MaxDepth)
@@ -183,10 +192,10 @@ func KeyGen(pp *PublicParams, msk *MasterKey, pattern *Pattern) (*PrivateKey, er
 	}
 
 	return &PrivateKey{
-		A1:      A1,
-		A2:      A2,
+		K0:      K0,
+		K1:      K1,
 		Bs:      Bs,
-		Pattern: pattern, /* TODO: clone this? */
+		Pattern: pattern.Clone(),
 	}, nil
 }
 
@@ -202,25 +211,25 @@ func KeyDer(pp *PublicParams, parentSk *PrivateKey, childPattern *Pattern) (*Pri
 	t := blspairing.NewRandomScalar()
 
 	var tmp bls.G1
-	A1 := blspairing.NewG1Identity()
+	K0 := blspairing.NewG1Identity()
 	childFixed := childPattern.FixedIndices()
 	for _, i := range childFixed {
 		tmp.ScalarMult(childPattern.Ps[i], pp.Hs[i])
-		A1.Add(A1, &tmp)
+		K0.Add(K0, &tmp)
 	}
-	A1.Add(A1, pp.G3)
-	A1.ScalarMult(t, A1)
-	A1.Add(A1, parentSk.A1)
+	K0.Add(K0, pp.G3)
+	K0.ScalarMult(t, K0)
+	K0.Add(K0, parentSk.K0)
 
 	intersection := intersectIndices(childFixed, parentSk.Pattern.FreeIndices())
 	for _, i := range intersection {
 		tmp.ScalarMult(childPattern.Ps[i], parentSk.Bs[i])
-		A1.Add(A1, &tmp)
+		K0.Add(K0, &tmp)
 	}
 
-	A2 := new(bls.G2)
-	A2.ScalarMult(t, pp.G)
-	A2.Add(A2, parentSk.A2)
+	K1 := new(bls.G2)
+	K1.ScalarMult(t, pp.G)
+	K1.Add(K1, parentSk.K1)
 
 	free := childPattern.FreeIndices()
 	Bs := make([]*bls.G1, pp.MaxDepth)
@@ -232,10 +241,10 @@ func KeyDer(pp *PublicParams, parentSk *PrivateKey, childPattern *Pattern) (*Pri
 	}
 
 	return &PrivateKey{
-		A1:      A1,
-		A2:      A2,
+		K0:      K0,
+		K1:      K1,
 		Bs:      Bs,
-		Pattern: childPattern, /* TODO: clone this? */
+		Pattern: childPattern.Clone(),
 	}, nil
 }
 
@@ -277,8 +286,8 @@ func Encrypt(pp *PublicParams, pattern *Pattern, m *bls.Gt) (*Ciphertext, error)
 }
 
 func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) *bls.Gt {
-	a := bls.Pair(ct.Z, sk.A2)
-	b := bls.Pair(sk.A1, ct.Y)
+	a := bls.Pair(ct.Z, sk.K1)
+	b := bls.Pair(sk.K0, ct.Y)
 	b.Inv(b)
 
 	m := new(bls.Gt)
@@ -286,4 +295,59 @@ func Decrypt(pp *PublicParams, sk *PrivateKey, ct *Ciphertext) *bls.Gt {
 	m.Mul(m, b)
 
 	return m
+}
+
+type Signature struct {
+	S0 *bls.G1
+	S1 *bls.G2
+}
+
+// Note that m is a scalar here
+func Sign(pp *PublicParams, sk *PrivateKey, m *bls.Scalar) *Signature {
+	sig := new(Signature)
+
+	t := blspairing.NewRandomScalar()
+
+	var tmp bls.G1
+	S0 := blspairing.NewG1Identity()
+	fixed := sk.Pattern.FixedIndices()
+	for _, i := range fixed {
+		tmp.ScalarMult(sk.Pattern.Ps[i], pp.Hs[i])
+		S0.Add(S0, &tmp)
+	}
+
+	tmp.ScalarMult(m, pp.Hs[len(pp.Hs)-1])
+	S0.Add(S0, &tmp)
+	S0.Add(S0, pp.G3)
+	S0.ScalarMult(t, S0)
+	S0.Add(S0, sk.K0)
+
+	gtoT := new(bls.G2)
+	gtoT.ScalarMult(t, pp.G)
+	sig.S1 = new(bls.G2)
+	sig.S1.Add(gtoT, sk.K1)
+
+	return sig
+}
+
+// Note that m is a scalar here
+func Verify(pp *PublicParams, signerPattern *Pattern, sig *Signature, m *bls.Scalar) bool {
+	lhs := bls.Pair(sig.S0, pp.G)
+
+	var tmp bls.G1
+	a := blspairing.NewG1Identity()
+	fixed := signerPattern.FixedIndices()
+	for _, i := range fixed {
+		tmp.ScalarMult(signerPattern.Ps[i], pp.Hs[i])
+		a.Add(a, &tmp)
+	}
+
+	tmp.ScalarMult(m, pp.Hs[len(pp.Hs)-1])
+	a.Add(a, &tmp)
+	a.Add(a, pp.G3)
+
+	rhs := bls.Pair(pp.G2, pp.G1)
+	rhs.Mul(rhs, bls.Pair(a, sig.S1))
+
+	return lhs.IsEqual(rhs)
 }
