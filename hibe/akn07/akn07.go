@@ -94,6 +94,9 @@ func (p *Pattern) Clone() *Pattern {
 	newP := new(Pattern)
 	newP.Ps = make([]*bls.Scalar, p.Depth())
 	for i := range newP.Ps {
+		if p.Ps[i] == nil {
+			continue
+		}
 		newP.Ps[i] = blspairing.CloneScalar(p.Ps[i])
 	}
 	return newP
@@ -304,8 +307,6 @@ type Signature struct {
 
 // Note that m is a scalar here
 func Sign(pp *PublicParams, sk *PrivateKey, m *bls.Scalar) *Signature {
-	sig := new(Signature)
-
 	t := blspairing.NewRandomScalar()
 
 	var tmp bls.G1
@@ -321,13 +322,18 @@ func Sign(pp *PublicParams, sk *PrivateKey, m *bls.Scalar) *Signature {
 	S0.Add(S0, pp.G3)
 	S0.ScalarMult(t, S0)
 	S0.Add(S0, sk.K0)
+	tmp.ScalarMult(m, sk.Bs[len(sk.Bs)-1])
+	S0.Add(S0, &tmp)
 
 	gtoT := new(bls.G2)
 	gtoT.ScalarMult(t, pp.G)
-	sig.S1 = new(bls.G2)
-	sig.S1.Add(gtoT, sk.K1)
+	S1 := new(bls.G2)
+	S1.Add(gtoT, sk.K1)
 
-	return sig
+	return &Signature{
+		S0: S0,
+		S1: S1,
+	}
 }
 
 // Note that m is a scalar here
@@ -341,7 +347,6 @@ func Verify(pp *PublicParams, signerPattern *Pattern, sig *Signature, m *bls.Sca
 		tmp.ScalarMult(signerPattern.Ps[i], pp.Hs[i])
 		a.Add(a, &tmp)
 	}
-
 	tmp.ScalarMult(m, pp.Hs[len(pp.Hs)-1])
 	a.Add(a, &tmp)
 	a.Add(a, pp.G3)
