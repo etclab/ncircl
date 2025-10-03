@@ -497,6 +497,60 @@ type Ciphertext struct {
 	Z *bls.G1
 }
 
+func (ct *Ciphertext) MarshalBinary() ([]byte, error) {
+	xBytes, err := ct.X.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	yBytes := ct.Y.Bytes()
+	zBytes := ct.Z.Bytes()
+
+	buf := make([]byte, 4)
+	binary.BigEndian.PutUint32(buf, uint32(len(xBytes)))
+	buf = append(buf, xBytes...)
+	buf = append(buf, yBytes[:]...)
+	buf = append(buf, zBytes[:]...)
+
+	return buf, nil
+}
+
+func (ct *Ciphertext) UnmarshalBinary(data []byte) error {
+	if len(data) < 4 {
+		return errors.New("invalid ciphertext data: too short")
+	}
+
+	gtSize := int(binary.BigEndian.Uint32(data[:4]))
+	offset := 4
+
+	g2Size := len(bls.G2Generator().Bytes())
+	g1Size := len(bls.G1Generator().Bytes())
+
+	expectedSize := 4 + gtSize + g2Size + g1Size
+	if len(data) < expectedSize {
+		return errors.New("invalid ciphertext data: too short")
+	}
+
+	ct.X = new(bls.Gt)
+	if err := ct.X.UnmarshalBinary(data[offset : offset+gtSize]); err != nil {
+		return err
+	}
+	offset += gtSize
+
+	ct.Y = new(bls.G2)
+	if err := ct.Y.SetBytes(data[offset : offset+g2Size]); err != nil {
+		return err
+	}
+	offset += g2Size
+
+	ct.Z = new(bls.G1)
+	if err := ct.Z.SetBytes(data[offset : offset+g1Size]); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func Encrypt(pp *PublicParams, pattern *Pattern, m *bls.Gt) (*Ciphertext, error) {
 	if pattern.Depth() != pp.MaxDepth {
 		return nil, ErrPatternInvalidDepth

@@ -489,3 +489,53 @@ func TestPrivateKeySerialization(t *testing.T) {
 		})
 	}
 }
+
+func TestCiphertextSerialization(t *testing.T) {
+	pp, _ := Setup(DefaultDepth)
+
+	tests := []struct {
+		name    string
+		pattern []string
+	}{
+		{"fully fixed", []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}},
+		{"some free", []string{"a", "", "c", "", "e"}},
+		{"single element", []string{"a"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pattern, err := NewPatternFromStrings(pp, tt.pattern)
+			if err != nil {
+				t.Fatalf("failed to create pattern: %v", err)
+			}
+
+			m := blspairing.NewRandomGt()
+			original, err := Encrypt(pp, pattern, m)
+			if err != nil {
+				t.Fatalf("Encrypt failed: %v", err)
+			}
+
+			data, err := original.MarshalBinary()
+			if err != nil {
+				t.Fatalf("MarshalBinary failed: %v", err)
+			}
+
+			deserialized := new(Ciphertext)
+			if err := deserialized.UnmarshalBinary(data); err != nil {
+				t.Fatalf("UnmarshalBinary failed: %v", err)
+			}
+
+			if !deserialized.X.IsEqual(original.X) {
+				t.Fatalf("X mismatch")
+			}
+
+			if !deserialized.Y.IsEqual(original.Y) {
+				t.Fatalf("Y mismatch")
+			}
+
+			if !deserialized.Z.IsEqual(original.Z) {
+				t.Fatalf("Z mismatch")
+			}
+		})
+	}
+}
