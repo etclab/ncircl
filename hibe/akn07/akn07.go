@@ -332,6 +332,9 @@ type PrivateKey struct {
 func (sk *PrivateKey) Clone() *PrivateKey {
 	bs := make([]*bls.G1, len(sk.Bs))
 	for i, b := range sk.Bs {
+		if b == nil {
+			continue
+		}
 		bs[i] = blspairing.CloneG1(b)
 	}
 
