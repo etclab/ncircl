@@ -24,44 +24,20 @@ type PublicParams struct {
 	Hs       []*bls.G1 // len(Hs) == MaxDepth; the last slot is for signatures
 }
 
-type MasterKey struct {
-	G2toAlpha *bls.G1 // also called G4
-}
-
-func (mk *MasterKey) MarshalBinary() ([]byte, error) {
-	return mk.G2toAlpha.Bytes(), nil
-}
-
-func (mk *MasterKey) UnmarshalBinary(data []byte) error {
-	mk.G2toAlpha = new(bls.G1)
-	return mk.G2toAlpha.SetBytes(data)
-}
-
-func Setup(maxDepth int) (*PublicParams, *MasterKey) {
-	pp := new(PublicParams)
-	pp.MaxDepth = maxDepth
-
-	alpha := blspairing.NewRandomScalar()
-
-	pp.G = bls.G2Generator()
-
-	pp.G1 = new(bls.G2)
-	pp.G1.ScalarMult(alpha, pp.G)
-
-	pp.G2 = blspairing.NewRandomG1()
-
-	pp.G3 = blspairing.NewRandomG1()
-
-	pp.Hs = make([]*bls.G1, pp.MaxDepth)
-	for i := 0; i < len(pp.Hs); i++ {
-		pp.Hs[i] = blspairing.NewRandomG1()
+func (pp *PublicParams) Clone() *PublicParams {
+	hs := make([]*bls.G1, len(pp.Hs))
+	for i, h := range pp.Hs {
+		hs[i] = blspairing.CloneG1(h)
 	}
 
-	msk := new(MasterKey)
-	msk.G2toAlpha = new(bls.G1)
-	msk.G2toAlpha.ScalarMult(alpha, pp.G2)
-
-	return pp, msk
+	return &PublicParams{
+		MaxDepth: pp.MaxDepth,
+		G:        blspairing.CloneG2(pp.G),
+		G1:       blspairing.CloneG2(pp.G1),
+		G2:       blspairing.CloneG1(pp.G2),
+		G3:       blspairing.CloneG1(pp.G3),
+		Hs:       hs,
+	}
 }
 
 func (pp *PublicParams) MarshalBinary() ([]byte, error) {
@@ -148,6 +124,46 @@ func (pp *PublicParams) UnmarshalBinary(data []byte) error {
 	}
 
 	return nil
+}
+
+type MasterKey struct {
+	G2toAlpha *bls.G1 // also called G4
+}
+
+func (mk *MasterKey) MarshalBinary() ([]byte, error) {
+	return mk.G2toAlpha.Bytes(), nil
+}
+
+func (mk *MasterKey) UnmarshalBinary(data []byte) error {
+	mk.G2toAlpha = new(bls.G1)
+	return mk.G2toAlpha.SetBytes(data)
+}
+
+func Setup(maxDepth int) (*PublicParams, *MasterKey) {
+	pp := new(PublicParams)
+	pp.MaxDepth = maxDepth
+
+	alpha := blspairing.NewRandomScalar()
+
+	pp.G = bls.G2Generator()
+
+	pp.G1 = new(bls.G2)
+	pp.G1.ScalarMult(alpha, pp.G)
+
+	pp.G2 = blspairing.NewRandomG1()
+
+	pp.G3 = blspairing.NewRandomG1()
+
+	pp.Hs = make([]*bls.G1, pp.MaxDepth)
+	for i := 0; i < len(pp.Hs); i++ {
+		pp.Hs[i] = blspairing.NewRandomG1()
+	}
+
+	msk := new(MasterKey)
+	msk.G2toAlpha = new(bls.G1)
+	msk.G2toAlpha.ScalarMult(alpha, pp.G2)
+
+	return pp, msk
 }
 
 type Pattern struct {
@@ -311,6 +327,20 @@ type PrivateKey struct {
 	K1      *bls.G2
 	Bs      []*bls.G1 // len MaxDepth
 	Pattern *Pattern
+}
+
+func (sk *PrivateKey) Clone() *PrivateKey {
+	bs := make([]*bls.G1, len(sk.Bs))
+	for i, b := range sk.Bs {
+		bs[i] = blspairing.CloneG1(b)
+	}
+
+	return &PrivateKey{
+		K0:      blspairing.CloneG1(sk.K0),
+		K1:      blspairing.CloneG2(sk.K1),
+		Bs:      bs,
+		Pattern: sk.Pattern.Clone(),
+	}
 }
 
 func (sk *PrivateKey) MarshalBinary() ([]byte, error) {
