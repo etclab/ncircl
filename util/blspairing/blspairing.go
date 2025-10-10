@@ -167,6 +167,12 @@ func NewRandomGt() *bls.Gt {
 	return z
 }
 
+func HashGtToBytes(g *bls.Gt) []byte {
+	data := GtToBytes(g)
+	hash := sha256.Sum256(data)
+	return hash[:]
+}
+
 func KdfGtToAes256(gt *bls.Gt) []byte {
 	bytes, err := gt.MarshalBinary()
 	if err != nil {

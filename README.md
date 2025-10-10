@@ -11,5 +11,6 @@ Go module that implements cryptographic schemes from the academic literature.
 - ibe:      Identity-Based Encryption
 - me:       Matchmaking Encryption
 - multisig: Multisignatures
+- peks:     Public Key Encryption with Keyword Search
 - pre:      Proxy Re-Encryption
 ```
