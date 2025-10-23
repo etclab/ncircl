@@ -165,9 +165,11 @@ func BenchmarkKeyGen(b *testing.B) {
 		}
 
 		b.Run(strings.Join(strPattern, "."), func(b *testing.B) {
-			_, err := KeyGen(pp, msk, childPattern)
-			if err != nil {
-				b.Fatalf("failed to generate key for pattern %s: %v", strPattern, err)
+			for b.Loop() {
+				_, err := KeyGen(pp, msk, childPattern)
+				if err != nil {
+					b.Fatalf("failed to generate key for pattern %s: %v", strPattern, err)
+				}
 			}
 		})
 	}
@@ -207,9 +209,11 @@ func BenchmarkKeyDer(b *testing.B) {
 		}
 
 		b.Run(strings.Join(strPattern, "."), func(b *testing.B) {
-			_, err := KeyDer(pp, parentKey, childPattern)
-			if err != nil {
-				b.Fatalf("failed to generate key for pattern %s: %v", strPattern, err)
+			for b.Loop() {
+				_, err := KeyDer(pp, parentKey, childPattern)
+				if err != nil {
+					b.Fatalf("failed to generate key for pattern %s: %v", strPattern, err)
+				}
 			}
 		})
 	}
@@ -240,9 +244,11 @@ func BenchmarkEncrypt(b *testing.B) {
 		}
 
 		b.Run(strings.Join(strPattern, "."), func(b *testing.B) {
-			_, err := Encrypt(pp, pattern, m)
-			if err != nil {
-				b.Fatalf("failed to encrypt to pattern %s: %v", strPattern, err)
+			for b.Loop() {
+				_, err := Encrypt(pp, pattern, m)
+				if err != nil {
+					b.Fatalf("failed to encrypt to pattern %s: %v", strPattern, err)
+				}
 			}
 		})
 	}
@@ -283,12 +289,14 @@ func BenchmarkDecrypt(b *testing.B) {
 		}
 
 		b.Run(strings.Join(strPattern, "."), func(b *testing.B) {
-			got := Decrypt(pp, key, ct)
-			b.StopTimer()
-			if !got.IsEqual(m) {
-				b.Fatalf("decryption failed for pattern %s", strPattern)
+			for b.Loop() {
+				got := Decrypt(pp, key, ct)
+				b.StopTimer()
+				if !got.IsEqual(m) {
+					b.Fatalf("decryption failed for pattern %s", strPattern)
+				}
+				b.StartTimer()
 			}
-			b.StartTimer()
 		})
 	}
 }
