@@ -547,3 +547,56 @@ func TestCiphertextSerialization(t *testing.T) {
 		})
 	}
 }
+
+func TestSignatureSerialization(t *testing.T) {
+	pp, msk := Setup(DefaultDepth)
+
+	tests := []struct {
+		name    string
+		pattern []string
+	}{
+		{"fully fixed", []string{"a", "b", "c", "d", "e", "f", "g", "h", "i"}},
+		{"some free", []string{"a", "", "c", "", "e"}},
+		{"single element", []string{"a"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pattern, err := NewPatternFromStrings(pp, tt.pattern)
+			if err != nil {
+				t.Fatalf("failed to create pattern: %v", err)
+			}
+
+			sk, err := KeyGen(pp, msk, pattern)
+			if err != nil {
+				t.Fatalf("KeyGen failed: %v", err)
+			}
+
+			m := blspairing.NewRandomScalar()
+			original := Sign(pp, sk, m)
+
+			data, err := original.MarshalBinary()
+			if err != nil {
+				t.Fatalf("MarshalBinary failed: %v", err)
+			}
+
+			deserialized := new(Signature)
+			if err := deserialized.UnmarshalBinary(data); err != nil {
+				t.Fatalf("UnmarshalBinary failed: %v", err)
+			}
+
+			if !deserialized.S0.IsEqual(original.S0) {
+				t.Fatalf("S0 mismatch")
+			}
+
+			if !deserialized.S1.IsEqual(original.S1) {
+				t.Fatalf("S1 mismatch")
+			}
+
+			// Verify the deserialized signature still verifies
+			if !Verify(pp, pattern, deserialized, m) {
+				t.Fatalf("verification with deserialized signature failed")
+			}
+		})
+	}
+}
