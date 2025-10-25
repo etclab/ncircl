@@ -161,17 +161,24 @@ func (p *Pattern) FreeIndices() []int {
 }
 
 func intersectIndices(a, b []int) []int {
-	// FIXME: simple, but inefficient method
-	var u []int
-	for i := range a {
-		for j := range b {
-			if a[i] == b[j] {
-				u = append(u, a[i])
-			}
-		}
-	}
-	return u
-}
+      if len(a) > len(b) {
+          a, b = b, a  // ensure a is smaller
+      }
+
+      set := make(map[int]bool, len(a))
+      for _, v := range a {
+          set[v] = true
+      }
+
+      var u []int
+      for _, v := range b {
+          if set[v] {
+              u = append(u, v)
+              delete(set, v)  // prevent duplicates
+          }
+      }
+      return u
+  }
 
 type PrivateKey struct {
 	K0      *bls.G1
